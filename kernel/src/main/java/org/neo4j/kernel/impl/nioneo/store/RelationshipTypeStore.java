@@ -179,13 +179,14 @@ public class RelationshipTypeStore extends AbstractStore implements Store
         }
     }
 
-    public RelationshipTypeRecord getRecord( int id )
+    @Override
+    public RelationshipTypeRecord getRecord( long id )
     {
         RelationshipTypeRecord record;
         PersistenceWindow window = acquireWindow( id, OperationType.READ );
         try
         {
-            record = getRecord( id, window );
+            record = getRecord( (int) id, window );
         }
         finally
         {
@@ -291,7 +292,7 @@ public class RelationshipTypeStore extends AbstractStore implements Store
     private void updateRecord( RelationshipTypeRecord record,
         PersistenceWindow window )
     {
-        int id = record.getId();
+        int id = (int) record.getId(); // RTRecords have 32 bit ids
         Buffer buffer = window.getOffsettedBuffer( id );
         if ( record.inUse() )
         {

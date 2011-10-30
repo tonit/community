@@ -23,10 +23,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-public class RelationshipTypeRecord extends AbstractRecord
+public class RelationshipTypeRecord extends Abstract64BitRecord
 {
     private int typeBlock = Record.NO_NEXT_BLOCK.intValue();
-    private Map<Integer,DynamicRecord> typeRecords = 
+    private Map<Integer,DynamicRecord> typeRecords =
         new HashMap<Integer,DynamicRecord>();
 
     public RelationshipTypeRecord( int id )

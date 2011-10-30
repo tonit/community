@@ -23,7 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class PropertyIndexRecord extends AbstractRecord
+public class PropertyIndexRecord extends Abstract64BitRecord
 {
     private int propCount = 0;
     private int keyBlockId = Record.NO_NEXT_BLOCK.intValue();
@@ -75,6 +75,7 @@ public class PropertyIndexRecord extends AbstractRecord
         keyRecords.add( record );
     }
 
+    @Override
     public String toString()
     {
         StringBuffer buf = new StringBuffer();

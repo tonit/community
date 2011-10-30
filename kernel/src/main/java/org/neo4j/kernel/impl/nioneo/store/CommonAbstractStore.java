@@ -106,6 +106,8 @@ public abstract class CommonAbstractStore
         initStorage();
     }
 
+    public abstract Abstract64BitRecord getRecord( long id );
+
     public String getTypeAndVersionDescriptor()
     {
         return buildTypeDescriptorAndVersion( getTypeDescriptor() );

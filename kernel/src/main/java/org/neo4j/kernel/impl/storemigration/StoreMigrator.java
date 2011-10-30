@@ -195,7 +195,8 @@ public class StoreMigrator
             {
                 List<LegacyDynamicRecord> dynamicRecords = relationshipTypeNameStoreReader.getPropertyChain( relationshipTypeRecord.getTypeBlock() );
                 String name = LegacyDynamicRecordFetcher.joinRecordsIntoString( relationshipTypeRecord.getTypeBlock(), dynamicRecords );
-                createRelationshipType( relationshipTypeStore, name, relationshipTypeRecord.getId() );
+                createRelationshipType( relationshipTypeStore, name,
+                        (int) relationshipTypeRecord.getId() );
             }
             relationshipTypeNameStoreReader.close();
         }
@@ -232,7 +233,8 @@ public class StoreMigrator
             {
                 List<LegacyDynamicRecord> dynamicRecords = propertyIndexKeyStoreReader.getPropertyChain( propertyIndexRecord.getKeyBlockId() );
                 String key = LegacyDynamicRecordFetcher.joinRecordsIntoString( propertyIndexRecord.getKeyBlockId(), dynamicRecords );
-                createPropertyIndex( propIndexStore, key, propertyIndexRecord.getId() );
+                createPropertyIndex( propIndexStore, key,
+                        (int) propertyIndexRecord.getId() );
             }
             propertyIndexKeyStoreReader.close();
         }

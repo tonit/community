@@ -25,6 +25,8 @@ import java.nio.channels.ReadableByteChannel;
 import java.util.Collection;
 import java.util.logging.Logger;
 
+import org.neo4j.kernel.impl.nioneo.store.Abstract64BitRecord;
+import org.neo4j.kernel.impl.nioneo.store.CommonAbstractStore;
 import org.neo4j.kernel.impl.nioneo.store.DynamicRecord;
 import org.neo4j.kernel.impl.nioneo.store.NeoStore;
 import org.neo4j.kernel.impl.nioneo.store.NodeRecord;
@@ -46,16 +48,24 @@ import org.neo4j.kernel.impl.transaction.xaframework.XaCommand;
 /**
  * Command implementations for all the commands that can be performed on a Neo
  * store.
+ *
+ * @param R The class of the Store used by the command
+ * @param S The class of the record encapsulated by the command
  */
-public abstract class Command extends XaCommand
+public abstract class Command<S extends CommonAbstractStore, R extends Abstract64BitRecord>
+        extends XaCommand
 {
     static Logger logger = Logger.getLogger( Command.class.getName() );
 
     private final long key;
+    protected final S store;
+    protected final R record;
 
-    Command( long key )
+    protected Command( S store, R record )
     {
-        this.key = key;
+        this.key = record.getId();
+        this.store = store;
+        this.record = record;
     }
 
     @Override
@@ -64,7 +74,7 @@ public abstract class Command extends XaCommand
         super.setRecovered();
     }
 
-    long getKey()
+    protected long getKey()
     {
         return key;
     }
@@ -283,28 +293,11 @@ public abstract class Command extends XaCommand
     private static final byte REL_TYPE_COMMAND = (byte) 4;
     private static final byte PROP_INDEX_COMMAND = (byte) 5;
 
-    static class NodeCommand extends Command
+    static class NodeCommand extends Command<NodeStore, NodeRecord>
     {
-        private final NodeRecord record;
-        private final NodeStore store;
-
         NodeCommand( NodeStore store, NodeRecord record )
         {
-            super( record.getId() );
-            this.record = record;
-            this.store = store;
-        }
-
-        @Override
-        boolean isCreated()
-        {
-            return record.isCreated();
-        }
-
-        @Override
-        boolean isDeleted()
-        {
-            return !record.inUse();
+            super( store, record );
         }
 
         @Override
@@ -392,28 +385,12 @@ public abstract class Command extends XaCommand
         }
     }
 
-    static class RelationshipCommand extends Command
+    static class RelationshipCommand extends
+            Command<RelationshipStore, RelationshipRecord>
     {
-        private final RelationshipRecord record;
-        private final RelationshipStore store;
-
         RelationshipCommand( RelationshipStore store, RelationshipRecord record )
         {
-            super( record.getId() );
-            this.record = record;
-            this.store = store;
-        }
-
-        @Override
-        boolean isCreated()
-        {
-            return record.isCreated();
-        }
-
-        @Override
-        boolean isDeleted()
-        {
-            return !record.inUse();
+            super( store, record );
         }
 
         long getFirstNode()
@@ -534,29 +511,13 @@ public abstract class Command extends XaCommand
         }
     }
 
-    static class PropertyIndexCommand extends Command
+    static class PropertyIndexCommand extends
+            Command<PropertyIndexStore, PropertyIndexRecord>
     {
-        private final PropertyIndexRecord record;
-        private final PropertyIndexStore store;
-
         PropertyIndexCommand( PropertyIndexStore store,
             PropertyIndexRecord record )
         {
-            super( record.getId() );
-            this.record = record;
-            this.store = store;
-        }
-
-        @Override
-        boolean isCreated()
-        {
-            return record.isCreated();
-        }
-
-        @Override
-        boolean isDeleted()
-        {
-            return !record.inUse();
+            super( store, record );
         }
 
         @Override
@@ -586,7 +547,7 @@ public abstract class Command extends XaCommand
             byte inUse = record.inUse() ? Record.IN_USE.byteValue()
                 : Record.NOT_IN_USE.byteValue();
             buffer.put( PROP_INDEX_COMMAND );
-            buffer.putInt( record.getId() );
+            buffer.putInt( (int) record.getId() );
             buffer.put( inUse );
             buffer.putInt( record.getPropertyCount() ).putInt(
                 record.getKeyBlockId() );
@@ -657,28 +618,12 @@ public abstract class Command extends XaCommand
         }
     }
 
-    static class PropertyCommand extends Command
+    static class PropertyCommand extends Command<PropertyStore, PropertyRecord>
     {
-        private final PropertyRecord record;
-        private final PropertyStore store;
 
         PropertyCommand( PropertyStore store, PropertyRecord record )
         {
-            super( record.getId() );
-            this.record = record;
-            this.store = store;
-        }
-
-        @Override
-        boolean isCreated()
-        {
-            return record.isCreated();
-        }
-
-        @Override
-        boolean isDeleted()
-        {
-            return !record.inUse();
+            super( store, record );
         }
 
         @Override
@@ -861,29 +806,13 @@ public abstract class Command extends XaCommand
         }
     }
 
-    static class RelationshipTypeCommand extends Command
+    static class RelationshipTypeCommand extends
+            Command<RelationshipTypeStore, RelationshipTypeRecord>
     {
-        private final RelationshipTypeRecord record;
-        private final RelationshipTypeStore store;
-
         RelationshipTypeCommand( RelationshipTypeStore store,
             RelationshipTypeRecord record )
         {
-            super( record.getId() );
-            this.record = record;
-            this.store = store;
-        }
-
-        @Override
-        boolean isCreated()
-        {
-            return record.isCreated();
-        }
-
-        @Override
-        boolean isDeleted()
-        {
-            return !record.inUse();
+            super( store, record );
         }
 
         @Override
@@ -913,7 +842,7 @@ public abstract class Command extends XaCommand
             byte inUse = record.inUse() ? Record.IN_USE.byteValue()
                 : Record.NOT_IN_USE.byteValue();
             buffer.put( REL_TYPE_COMMAND );
-            buffer.putInt( record.getId() ).put( inUse ).putInt(
+            buffer.putInt( (int) record.getId() ).put( inUse ).putInt(
                 record.getTypeBlock() );
 
             Collection<DynamicRecord> typeRecords = record.getTypeRecords();
@@ -1010,7 +939,13 @@ public abstract class Command extends XaCommand
         }
     }
 
-    abstract boolean isCreated();
+    protected boolean isCreated()
+    {
+        return record.isCreated();
+    }
 
-    abstract boolean isDeleted();
+    protected boolean isDeleted()
+    {
+        return !record.inUse();
+    }
 }

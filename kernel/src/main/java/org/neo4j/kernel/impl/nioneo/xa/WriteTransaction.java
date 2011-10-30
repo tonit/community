@@ -268,7 +268,7 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
                         }
                     }
                 }
-                removeRelationshipTypeFromCache( record.getId() );
+                removeRelationshipTypeFromCache( (int) record.getId() );
             }
             for ( NodeRecord record : nodeRecords.values() )
             {
@@ -1615,12 +1615,12 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
 
     void addRelationshipTypeRecord( RelationshipTypeRecord record )
     {
-        relTypeRecords.put( record.getId(), record );
+        relTypeRecords.put( (int) record.getId(), record );
     }
 
     void addPropertyIndexRecord( PropertyIndexRecord record )
     {
-        propIndexRecords.put( record.getId(), record );
+        propIndexRecords.put( (int) record.getId(), record );
     }
 
     PropertyIndexRecord getPropertyIndexRecord( int id )

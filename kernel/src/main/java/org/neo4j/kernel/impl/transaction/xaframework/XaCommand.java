@@ -91,10 +91,10 @@ public abstract class XaCommand
      * all the data that is needed to re-create the command (see
      * {@link XaCommandFactory}).
      * <p>
-     * Write the data to the <CODE>fileChannel</CODE>, you can use the 
+     * Write the data to the <CODE>fileChannel</CODE>, you can use the
      * <CODE>buffer</CODE> supplied or create your own buffer since its capacity
-     * is very small (137 bytes or something). Acccess to writing commands is 
-     * synchronized, only one command will be written at a time so if you need 
+     * is very small (137 bytes or something). Acccess to writing commands is
+     * synchronized, only one command will be written at a time so if you need
      * to write larger data sets the commands can share the same buffer.
      * <p>
      * Don't throw an <CODE>IOException</CODE> to imply something is wrong
@@ -104,7 +104,7 @@ public abstract class XaCommand
      * <p>
      * Don't <CODE>force</CODE>, <CODE>position</CODE> or anything except
      * normal forward <CODE>write</CODE> with the file channel.
-     * 
+     *
      * @param fileChannel
      *            The channel to the {@link XaLogicalLog}
      * @param buffer
@@ -126,7 +126,7 @@ public abstract class XaCommand
 
     /**
      * Returns wether or not this is a "recovered command".
-     * 
+     *
      * @return <CODE>true</CODE> if command was created during a recovery else
      *         <CODE>false</CODE> is returned
      */

@@ -363,7 +363,7 @@ public class NeoStore extends AbstractStore
 
     public long getCreationTime()
     {
-        return getRecord( 0 );
+        return getRecordAsLong( 0 );
     }
 
     public void setCreationTime( long time )
@@ -373,7 +373,7 @@ public class NeoStore extends AbstractStore
 
     public long getRandomNumber()
     {
-        return getRecord( 1 );
+        return getRecordAsLong( 1 );
     }
 
     public void setRandomNumber( long nr )
@@ -395,7 +395,7 @@ public class NeoStore extends AbstractStore
 
     public long getVersion()
     {
-        return getRecord( 2 );
+        return getRecordAsLong( 2 );
     }
 
     public void setVersion( long version )
@@ -405,7 +405,7 @@ public class NeoStore extends AbstractStore
 
     public synchronized void setLastCommittedTx( long txId )
     {
-        long current = getRecord( 3 );
+        long current = getRecordAsLong( 3 );
         if ( (current + 1) != txId && !isInRecoveryMode() )
         {
             throw new InvalidRecordException( "Could not set tx commit id[" +
@@ -435,7 +435,7 @@ public class NeoStore extends AbstractStore
     {
         if ( lastCommittedTx == -1 )
         {
-            lastCommittedTx = getRecord( 3 );
+            lastCommittedTx = getRecordAsLong( 3 );
         }
         return lastCommittedTx;
     }
@@ -447,7 +447,14 @@ public class NeoStore extends AbstractStore
         return current;
     }
 
-    private long getRecord( long id )
+    @Override
+    public Abstract64BitRecord getRecord( long id )
+    {
+        throw new UnsupportedOperationException(
+                "NeoStore does not yet return records" );
+    }
+
+    private long getRecordAsLong( long id )
     {
         PersistenceWindow window = acquireWindow( id, OperationType.READ );
         try
@@ -478,7 +485,7 @@ public class NeoStore extends AbstractStore
 
     public long getStoreVersion()
     {
-        return getRecord( 4 );
+        return getRecordAsLong( 4 );
     }
 
     public void setStoreVersion( long version )

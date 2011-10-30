@@ -76,6 +76,7 @@ public class NodeStore extends AbstractStore implements Store
         store.close();
     }
 
+    @Override
     public NodeRecord getRecord( long id )
     {
         PersistenceWindow window = acquireWindow( id, OperationType.READ );

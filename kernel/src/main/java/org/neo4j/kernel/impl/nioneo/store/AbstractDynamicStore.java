@@ -414,6 +414,20 @@ public abstract class AbstractDynamicStore extends CommonAbstractStore implement
         return record;
     }
 
+    @Override
+    public DynamicRecord getRecord( long id )
+    {
+        PersistenceWindow window = acquireWindow( id, OperationType.READ );
+        try
+        {
+            return getRecord( id, window, true );
+        }
+        finally
+        {
+            releaseWindow( window );
+        }
+    }
+
     public Collection<DynamicRecord> getRecords( long startBlockId )
     {
         List<DynamicRecord> recordList = new LinkedList<DynamicRecord>();

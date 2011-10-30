@@ -149,7 +149,7 @@ public class PropertyIndexStore extends AbstractStore implements Store
                 continue;
             }
             found++;
-            indexList.add( new PropertyIndexData( record.getId(),
+            indexList.add( new PropertyIndexData( (int) record.getId(), /* PIRecords have 32 bit ids */
                 getStringFor( record ) ) );
         }
         return indexList.toArray( new PropertyIndexData[indexList.size()] );
@@ -158,7 +158,7 @@ public class PropertyIndexStore extends AbstractStore implements Store
     public PropertyIndexData getPropertyIndex( int id )
     {
         PropertyIndexRecord record = getRecord( id );
-        return new PropertyIndexData( record.getId(),
+        return new PropertyIndexData( (int) record.getId(), /* PIRecords have 32 bit ids */
             getStringFor( record ) );
     }
 
@@ -169,7 +169,7 @@ public class PropertyIndexStore extends AbstractStore implements Store
         {
             setRecovered();
             PropertyIndexRecord record = getRecord( id );
-            return new PropertyIndexData( record.getId(),
+            return new PropertyIndexData( (int) record.getId(), /* PIRecords have 32 bit ids */
                 getStringFor( record ) );
         }
         finally
@@ -178,13 +178,14 @@ public class PropertyIndexStore extends AbstractStore implements Store
         }
     }
 
-    public PropertyIndexRecord getRecord( int id )
+    @Override
+    public PropertyIndexRecord getRecord( long id )
     {
         PropertyIndexRecord record;
         PersistenceWindow window = acquireWindow( id, OperationType.READ );
         try
         {
-            record = getRecord( id, window );
+            record = getRecord( (int) id, window );
         }
         finally
         {
@@ -278,7 +279,7 @@ public class PropertyIndexStore extends AbstractStore implements Store
     private void updateRecord( PropertyIndexRecord record,
         PersistenceWindow window )
     {
-        int id = record.getId();
+        int id = (int) record.getId(); // PIRecords have 32 bit ids
         Buffer buffer = window.getOffsettedBuffer( id );
         if ( record.inUse() )
         {
