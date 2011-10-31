@@ -109,9 +109,10 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
     private XaConnection xaConnection;
 
     WriteTransaction( int identifier, XaLogicalLog log, NeoStore neoStore,
-        LockReleaser lockReleaser, LockManager lockManager )
+            LockReleaser lockReleaser, LockManager lockManager,
+            long creationTime )
     {
-        super( identifier, log );
+        super( identifier, log, creationTime );
         this.neoStore = neoStore;
         this.lockReleaser = lockReleaser;
         this.lockManager = lockManager;

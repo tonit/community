@@ -31,15 +31,17 @@ public abstract class XaTransactionFactory
     /**
      * Create a {@link XaTransaction} with <CODE>identifier</CODE> as internal
      * transaction id.
-     * 
+     *
      * @param identifier
      *            The identifier of the transaction
+     * @param creationTime
+     *            The timestamp with which the tx was added in the log
      * @return A new xa transaction
      */
-    public abstract XaTransaction create( int identifier );
+    public abstract XaTransaction create( int identifier, long creationTime );
 
     public abstract void flushAll();
-    
+
     void setLogicalLog( XaLogicalLog log )
     {
         this.log = log;
@@ -61,8 +63,8 @@ public abstract class XaTransactionFactory
     }
 
     public abstract long getCurrentVersion();
-    
+
     public abstract long getAndSetNewVersion();
 
     public abstract long getLastCommittedTx();
-} 
+}

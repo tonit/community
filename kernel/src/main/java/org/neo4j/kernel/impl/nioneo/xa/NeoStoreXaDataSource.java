@@ -316,10 +316,10 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         }
 
         @Override
-        public XaTransaction create( int identifier )
+        public XaTransaction create( int identifier, long creationTime )
         {
             return new WriteTransaction( identifier, getLogicalLog(), neoStore,
-                lockReleaser, lockManager );
+                    lockReleaser, lockManager, creationTime );
         }
 
         @Override

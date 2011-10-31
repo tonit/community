@@ -79,6 +79,16 @@ public abstract class Command<S extends CommonAbstractStore, R extends Abstract6
         return key;
     }
 
+    public S getStore()
+    {
+        return store;
+    }
+
+    public R getRecord()
+    {
+        return record;
+    }
+
     @Override
     public int hashCode()
     {

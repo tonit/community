@@ -44,7 +44,7 @@ public class XaContainer
 
     /**
      * Creates a XaContainer.
-     * 
+     *
      * @param logicalLog
      *            The logical log file name
      * @param cf
@@ -70,13 +70,13 @@ public class XaContainer
     {
         this.cf = cf;
         this.tf = tf;
-        
+
         // OK, this is ugly (although it only happens in test cases... config is never
-        // null diring normal circumstances.
+        // null during normal circumstances.
         TxIdGenerator txIdFactory = config != null ?
                 (TxIdGenerator) config.get( TxIdGenerator.class ) : TxIdGenerator.DEFAULT;
         txIdFactory = txIdFactory != null ? txIdFactory : TxIdGenerator.DEFAULT;
-        
+
         rm = new XaResourceManager( dataSource, tf, txIdFactory, logicalLog );
         log = new XaLogicalLog( logicalLog, rm, cf, tf, config );
         rm.setLogicalLog( log );
@@ -85,7 +85,7 @@ public class XaContainer
 
     /**
      * Opens the logical log. If the log doesn't exist a new log will be
-     * created. If the log exists it will be scaned and non completed
+     * created. If the log exists it will be scanned and non completed
      * transactions will be recovered.
      * <p>
      * This method is only valid to invoke once after the container has been

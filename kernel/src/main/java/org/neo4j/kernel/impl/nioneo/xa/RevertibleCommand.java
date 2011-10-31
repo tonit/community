@@ -48,13 +48,44 @@ import org.neo4j.kernel.impl.transaction.xaframework.XaCommand;
  */
 public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends Abstract64BitRecord>
 {
-    private final Command<S, R> delegate;
+    private final Command<S, R> current;
     private final Command<S, R> previous;
 
-    RevertibleCommand( Command<S, R> delegate )
+    protected RevertibleCommand( Command<S, R> current )
     {
-        this.delegate = delegate;
+        this.current = current;
         this.previous = generatePrevious();
+    }
+
+    public static RevertibleCommand forCommand( XaCommand original )
+    {
+        if ( original instanceof NodeCommand )
+        {
+            return new RevertibleNodeCommand( (NodeCommand) original );
+        }
+        else if ( original instanceof RelationshipCommand )
+        {
+            return new RevertibleRelationshipCommand(
+                    (RelationshipCommand) original );
+        }
+        else if ( original instanceof RelationshipTypeCommand )
+        {
+            return new RevertibleRelationshipTypeCommand(
+                    (RelationshipTypeCommand) original );
+        }
+        else if ( original instanceof PropertyCommand )
+        {
+            return new RevertiblePropertyCommand( (PropertyCommand) original );
+        }
+        else if ( original instanceof PropertyIndexCommand )
+        {
+            return new RevertiblePropertyIndexCommand(
+                    (PropertyIndexCommand) original );
+        }
+        else
+        {
+            throw new IllegalArgumentException( "Unknown command " + original );
+        }
     }
 
     /**
@@ -75,11 +106,11 @@ public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends
          *     outside the store file. So we return a dummy not inUse() record - should be
          *     enough.
          */
-        long recordIdOfInterest = delegate.record.getId();
+        long recordIdOfInterest = current.record.getId();
         R theRecord = null;
         try
         {
-            theRecord = (R) delegate.store.getRecord( recordIdOfInterest );
+            theRecord = (R) current.store.getRecord( recordIdOfInterest );
             return generatePreviousFromRecord(theRecord);
         }
         catch ( InvalidRecordException e )
@@ -87,105 +118,118 @@ public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends
             /*
              * ok, not in use
              */
-            assert delegate.record.isCreated();
+            assert current.record.isCreated();
             return generatePreviousFromRecord(recordIdOfInterest);
         }
     }
 
-    protected Command<S, R> getDelegate()
+    public Command<S, R> getCurrent()
     {
-        return delegate;
+        return current;
     }
 
-    protected Command<S, R> getPrevious()
+    public Command<S, R> getPrevious()
     {
         return previous;
     }
 
+    /**
+     * For a non-null (i.e. currently existing) store record returns the
+     * corresponding XaCommand
+     *
+     * @param record The store record
+     * @return An XaCommand that if executed would result in the argument
+     */
     protected abstract Command<S, R> generatePreviousFromRecord( R record );
 
+    /**
+     * For a given record id creates a command that encapsulates the creation
+     * of a !inUse() record with that id.
+     *
+     * @param id The id of the !inUse() record whose XaCommand should be created
+     * @return The XaCommand
+     */
     protected abstract Command<S, R> generatePreviousFromRecord( long id );
 
     /*
      * Implementation for all Commands are below. Mainly boilerplate code
      */
 
-    public static class NodeRevertibleCommand extends
+    public static class RevertibleNodeCommand extends
             RevertibleCommand<NodeStore, NodeRecord>
     {
-        NodeRevertibleCommand( Command.NodeCommand delegate )
+        RevertibleNodeCommand( NodeCommand delegate )
         {
             super( delegate );
         }
 
         @Override
-        protected Command.NodeCommand generatePreviousFromRecord(
+        protected NodeCommand generatePreviousFromRecord(
                 NodeRecord record )
         {
             assert record != null;
-            return new Command.NodeCommand(
-                    ( (NodeCommand) getDelegate() ).store, record );
+            return new NodeCommand(
+                    ( (NodeCommand) getCurrent() ).store, record );
         }
 
         @Override
-        protected Command.NodeCommand generatePreviousFromRecord( long id )
+        protected NodeCommand generatePreviousFromRecord( long id )
         {
-            return new Command.NodeCommand(
-                    ( (NodeCommand) getDelegate() ).store, new NodeRecord( id ) );
+            return new NodeCommand(
+                    ( (NodeCommand) getCurrent() ).store, new NodeRecord( id ) );
         }
     }
 
-    public static class RelationshipRevertibleCommand extends
+    public static class RevertibleRelationshipCommand extends
             RevertibleCommand<RelationshipStore, RelationshipRecord>
     {
-        public RelationshipRevertibleCommand(
-                Command.RelationshipCommand delegate )
+        public RevertibleRelationshipCommand( RelationshipCommand delegate )
         {
             super( delegate );
         }
 
         @Override
-        protected Command.RelationshipCommand generatePreviousFromRecord(
+        protected RelationshipCommand generatePreviousFromRecord(
                 RelationshipRecord record )
         {
             assert record != null;
-            return new Command.RelationshipCommand(
-                    ( (RelationshipCommand) getDelegate() ).store, record );
+            return new RelationshipCommand(
+                    ( (RelationshipCommand) getCurrent() ).store, record );
         }
 
         @Override
-        protected Command.RelationshipCommand generatePreviousFromRecord(
+        protected RelationshipCommand generatePreviousFromRecord(
                 long id )
         {
-            return new Command.RelationshipCommand(
-                    ( (RelationshipCommand) getDelegate() ).store,
+            return new RelationshipCommand(
+                    ( (RelationshipCommand) getCurrent() ).store,
                     new RelationshipRecord( id,
                             Record.NO_PREV_RELATIONSHIP.intValue(),
                             Record.NO_NEXT_RELATIONSHIP.intValue(), -1 ) );
         }
     }
 
-    public static class RelationshipTypeRevertibleCommand
+    public static class RevertibleRelationshipTypeCommand
             extends
             RevertibleCommand<RelationshipTypeStore, RelationshipTypeRecord>
     {
-        public RelationshipTypeRevertibleCommand(
-                Command.RelationshipTypeCommand delegate )
+        public RevertibleRelationshipTypeCommand(
+                RelationshipTypeCommand delegate )
         {
             super( delegate );
         }
 
         @Override
-        protected Command.RelationshipTypeCommand generatePreviousFromRecord(
+        protected RelationshipTypeCommand generatePreviousFromRecord(
                 long id )
         {
-            return new Command.RelationshipTypeCommand(
-                    ( (RelationshipTypeCommand) getDelegate() ).store,
+            return new RelationshipTypeCommand(
+                    ( (RelationshipTypeCommand) getCurrent() ).store,
                     new RelationshipTypeRecord( (int) id ) );
         }
 
         @Override
-        protected Command.RelationshipTypeCommand generatePreviousFromRecord(
+        protected RelationshipTypeCommand generatePreviousFromRecord(
                 RelationshipTypeRecord record )
         {
             /*
@@ -196,14 +240,14 @@ public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends
              */
             throw new IllegalStateException(
                     record + " is a RelationshipTypeRecord updated by "
-                            + getDelegate() + ". This cannot be happening." );
+                            + getCurrent() + ". This cannot be happening." );
         }
     }
 
-    public static class PropertyRevertibleCommand extends
+    public static class RevertiblePropertyCommand extends
             RevertibleCommand<PropertyStore, PropertyRecord>
     {
-        public PropertyRevertibleCommand( Command.PropertyCommand delegate )
+        public RevertiblePropertyCommand( PropertyCommand delegate )
         {
             super( delegate );
         }
@@ -212,8 +256,8 @@ public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends
         protected Command<PropertyStore, PropertyRecord> generatePreviousFromRecord(
                 long id )
         {
-             return new Command.PropertyCommand(
-            ( (PropertyCommand) getDelegate() ).store,
+            return new PropertyCommand(
+                    ( (PropertyCommand) getCurrent() ).store,
                     new PropertyRecord( id ) );
         }
 
@@ -221,16 +265,15 @@ public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends
         protected Command<PropertyStore, PropertyRecord> generatePreviousFromRecord(
                 PropertyRecord record )
         {
-            return new Command.PropertyCommand(
-                    ( (PropertyCommand) getDelegate() ).store, record );
+            return new PropertyCommand(
+                    ( (PropertyCommand) getCurrent() ).store, record );
         }
     }
 
-    public static class PropertyIndexRevertibleCommand extends
+    public static class RevertiblePropertyIndexCommand extends
             RevertibleCommand<PropertyIndexStore, PropertyIndexRecord>
     {
-        public PropertyIndexRevertibleCommand(
-                Command.PropertyIndexCommand delegate )
+        public RevertiblePropertyIndexCommand( PropertyIndexCommand delegate )
         {
             super( delegate );
         }
@@ -239,8 +282,8 @@ public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends
         protected Command<PropertyIndexStore, PropertyIndexRecord> generatePreviousFromRecord(
                 long id )
         {
-            return new Command.PropertyIndexCommand(
-                    ( (PropertyIndexCommand) getDelegate() ).store,
+            return new PropertyIndexCommand(
+                    ( (PropertyIndexCommand) getCurrent() ).store,
                     ( new PropertyIndexRecord( (int) id ) ) );
         }
 
@@ -248,8 +291,8 @@ public abstract class RevertibleCommand<S extends CommonAbstractStore, R extends
         protected Command<PropertyIndexStore, PropertyIndexRecord> generatePreviousFromRecord(
                 PropertyIndexRecord record )
         {
-            return new Command.PropertyIndexCommand(
-                    ( (PropertyIndexCommand) getDelegate() ).store, record );
+            return new PropertyIndexCommand(
+                    ( (PropertyIndexCommand) getCurrent() ).store, record );
         }
     }
 }

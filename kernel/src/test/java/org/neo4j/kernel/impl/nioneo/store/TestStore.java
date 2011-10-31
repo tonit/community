@@ -37,29 +37,29 @@ public class TestStore
 {
     public static IdGeneratorFactory ID_GENERATOR_FACTORY =
             CommonFactories.defaultIdGeneratorFactory();
-    
+
     private String path()
     {
         String path = AbstractNeo4jTestCase.getStorePath( "teststore" );
         new File( path ).mkdirs();
         return path;
     }
-    
+
     private String file( String name )
     {
         return path() + File.separator + name;
     }
-    
+
     private String storeFile()
     {
         return file( "testStore.db" );
     }
-    
+
     private String storeIdFile()
     {
         return file( "testStore.db.id" );
     }
-    
+
     @Test
     public void testCreateStore() throws IOException
     {
@@ -151,15 +151,24 @@ public class TestStore
                     "store_dir", "target/var/teststore" ), IdType.NODE );
         }
 
+        @Override
         protected void initStorage()
         {
         }
 
+        @Override
+        public Abstract64BitRecord getRecord( long id )
+        {
+            return null;
+        }
+
+        @Override
         public int getRecordSize()
         {
             return RECORD_SIZE;
         }
 
+        @Override
         public String getTypeDescriptor()
         {
             return TYPE_DESCRIPTOR;
@@ -171,6 +180,7 @@ public class TestStore
             return new Store( fileName );
         }
 
+        @Override
         protected void rebuildIdGenerator()
         {
         }

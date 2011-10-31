@@ -97,6 +97,7 @@ public class XaLogicalLog
 
     private final String storeDir;
     private final LogBufferFactory logBufferFactory;
+    private final LogApplierFactory logApplierFactory;
     private boolean doingRecovery;
     private long lastRecoveredTx = -1;
     private long recoveredTxCount;
@@ -116,6 +117,15 @@ public class XaLogicalLog
         this.cf = cf;
         this.xaTf = xaTf;
         this.logBufferFactory = (LogBufferFactory) config.get( LogBufferFactory.class );
+        LogApplierFactory tempLogApplierFactory = (LogApplierFactory) config.get( LogApplierFactory.class );
+        if ( tempLogApplierFactory != null )
+        {
+            logApplierFactory = tempLogApplierFactory;
+        }
+        else
+        {
+            logApplierFactory = new DefaultLogApplierFactory();
+        }
         log = Logger.getLogger( this.getClass().getName() + File.separator + fileName );
         sharedBuffer = ByteBuffer.allocateDirect( 9 + Xid.MAXGTRIDSIZE
             + Xid.MAXBQUALSIZE * 10 );
@@ -274,14 +284,17 @@ public class XaLogicalLog
 
     // returns identifier for transaction
     // [TX_START][xid[gid.length,bid.lengh,gid,bid]][identifier][format id]
-    public synchronized int start( Xid xid, int masterId ) throws XAException
+    public synchronized LogEntry.Start start( Xid xid, int masterId )
+            throws XAException
     {
         int xidIdent = getNextIdentifier();
+        LogEntry.Start start = null;
         try
         {
             long position = writeBuffer.getFileChannelPosition();
             long timeWritten = System.currentTimeMillis();
-            LogEntry.Start start = new LogEntry.Start( xid, xidIdent, masterId, position, timeWritten );
+            start = new LogEntry.Start( xid, xidIdent, masterId, position,
+                    timeWritten );
             LogIoUtils.writeStart( writeBuffer, xidIdent, xid, masterId, timeWritten );
             xidIdentMap.put( xidIdent, start );
         }
@@ -289,7 +302,7 @@ public class XaLogicalLog
         {
             throw Exceptions.withCause( new XAException( "Logical log couldn't start transaction: " + e ), e );
         }
-        return xidIdent;
+        return start;
     }
 
     // [TX_PREPARE][identifier]
@@ -456,7 +469,7 @@ public class XaLogicalLog
         // re-create the transaction
         Xid xid = entry.getXid();
         xidIdentMap.put( identifier, entry );
-        XaTransaction xaTx = xaTf.create( identifier );
+        XaTransaction xaTx = xaTf.create( identifier, entry.getTimeWritten() );
         xaTx.setRecovered();
         recoveredTxMap.put( identifier, xaTx );
         xaRm.injectStart( xid, xaTx );
@@ -1141,12 +1154,12 @@ public class XaLogicalLog
                 e.printStackTrace();
             }
         }
-        
+
         public LogEntry.Commit getLastCommitEntry()
         {
             return lastCommitEntry;
         }
-        
+
         public long getLastTxChecksum()
         {
             return collector.getLastTxChecksum();
@@ -1157,7 +1170,7 @@ public class XaLogicalLog
     {
         return new LogExtractor( startTxId, endTxIdHint );
     }
-    
+
     int getMasterIdForIdentifier( int identifier )
     {
         // Only called during recovery so ok not thread safe.
@@ -1310,19 +1323,30 @@ public class XaLogicalLog
         return file.exists() ? FileUtils.deleteFile( file ) : false;
     }
 
-    private class LogApplier
+    private class DefaultLogApplierFactory implements LogApplierFactory
+    {
+        @Override
+        public LogApplier getLogApplier( ReadableByteChannel byteChannel )
+        {
+            return new LogApplierImpl( byteChannel );
+        }
+    }
+
+    private class LogApplierImpl implements LogApplier
     {
         private final ReadableByteChannel byteChannel;
 
         private LogEntry.Start startEntry;
         private LogEntry.Commit commitEntry;
 
-        LogApplier( ReadableByteChannel byteChannel )
+        LogApplierImpl( ReadableByteChannel byteChannel )
         {
             this.byteChannel = byteChannel;
         }
 
-        boolean readAndWriteAndApplyEntry( int newXidIdentifier ) throws IOException
+        @Override
+        public boolean readAndWriteAndApplyEntry( int newXidIdentifier )
+                throws IOException
         {
             LogEntry entry = LogIoUtils.readEntry( sharedBuffer, byteChannel, cf );
             if ( entry != null )
@@ -1337,11 +1361,87 @@ public class XaLogicalLog
                 {
                     startEntry = (LogEntry.Start) entry;
                 }
+
+                afterReadBeforeWrite( entry );
                 LogIoUtils.writeLogEntry( entry, writeBuffer );
+                afterWriteBeforeApply( entry );
                 applyEntry( entry );
+                afterApply( entry );
                 return true;
             }
             return false;
+        }
+
+        @Override
+        public ReadableByteChannel getChannel()
+        {
+            return byteChannel;
+        }
+
+        public LogEntry.Start getStartEntry()
+        {
+            return startEntry;
+        }
+
+        @Override
+        public LogEntry.Commit getCommitEntry()
+        {
+            return commitEntry;
+        }
+
+        protected void afterReadBeforeWrite( LogEntry entry )
+        {
+        }
+
+        protected void afterWriteBeforeApply( LogEntry entry )
+        {
+        }
+
+        protected void afterApply( LogEntry entry )
+        {
+        }
+    }
+
+    private class VerifyingLogApplier extends LogApplierImpl
+    {
+        private RevertibleXaTransaction undo;
+
+        VerifyingLogApplier( ReadableByteChannel byteChannel )
+        {
+            super( byteChannel );
+        }
+
+        @Override
+        protected void afterReadBeforeWrite( LogEntry entry )
+        {
+            if (undo == null)
+            {
+                // Start is always the first entry
+                undo = new RevertibleXaTransaction( getStartEntry().getIdentifier(), getStartEntry().getTimeWritten() );
+            }
+        }
+
+        @Override
+        protected void afterWriteBeforeApply( LogEntry entry )
+        {
+            if ( getCommitEntry() != null )
+            {
+                assert undo != null;
+                try
+                {
+                    undo.writeOut( null );
+                }
+                catch ( IOException e )
+                {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+        @Override
+        protected void afterApply( LogEntry entry )
+        {
+
         }
     }
 
@@ -1373,7 +1473,7 @@ public class XaLogicalLog
 
         long logEntriesFound = 0;
         scanIsComplete = false;
-        LogApplier logApplier = new LogApplier( byteChannel );
+        LogApplier logApplier = logApplierFactory.getLogApplier( byteChannel );
         int xidIdent = getNextIdentifier();
         long startEntryPosition = writeBuffer.getFileChannelPosition();
         while ( logApplier.readAndWriteAndApplyEntry( xidIdent ) )
@@ -1381,7 +1481,7 @@ public class XaLogicalLog
             logEntriesFound++;
         }
         byteChannel.close();
-        LogEntry.Start startEntry = logApplier.startEntry;
+        LogEntry.Start startEntry = logApplier.getStartEntry();
         if ( startEntry == null )
         {
             throw new IOException( "Unable to find start entry" );
@@ -1427,7 +1527,7 @@ public class XaLogicalLog
 //        System.out.println( "applyFullTx#start @ pos: " + writeBuffer.getFileChannelPosition() );
         long logEntriesFound = 0;
         scanIsComplete = false;
-        LogApplier logApplier = new LogApplier( byteChannel );
+        LogApplier logApplier = logApplierFactory.getLogApplier( byteChannel );
         int xidIdent = getNextIdentifier();
         long startEntryPosition = writeBuffer.getFileChannelPosition();
         boolean successfullyApplied = false;
@@ -1441,12 +1541,12 @@ public class XaLogicalLog
         }
         finally
         {
-            if ( !successfullyApplied && logApplier.startEntry != null )
+            if ( !successfullyApplied && logApplier.getStartEntry() != null )
             {   // Unmap this identifier if tx not applied correctly
                 xidIdentMap.remove( xidIdent );
                 try
                 {
-                    xaRm.forget( logApplier.startEntry.getXid() );
+                    xaRm.forget( logApplier.getStartEntry().getXid() );
                 }
                 catch ( XAException e )
                 {
@@ -1456,13 +1556,14 @@ public class XaLogicalLog
         }
         byteChannel.close();
         scanIsComplete = true;
-        LogEntry.Start startEntry = logApplier.startEntry;
+        LogEntry.Start startEntry = logApplier.getStartEntry();
         if ( startEntry == null )
         {
             throw new IOException( "Unable to find start entry" );
         }
         startEntry.setStartPosition( startEntryPosition );
-        cacheTxStartPosition( logApplier.commitEntry.getTxId(), logApplier.commitEntry.getMasterId(), startEntry );
+        cacheTxStartPosition( logApplier.getCommitEntry().getTxId(),
+                logApplier.getCommitEntry().getMasterId(), startEntry );
 //        System.out.println( "applyFullTx#end @ pos: " + writeBuffer.getFileChannelPosition() );
         checkLogRotation();
     }
@@ -1599,6 +1700,14 @@ public class XaLogicalLog
         }
     }
 
+    /**
+     * Returns the offset in the log for the first (in file order)
+     * start entry.
+     *
+     * @param endPosition The largest known position written in the log
+     * @return The position of the first entry record, less that the argument
+     *         or the argument if none such entry exists.
+     */
     private long getFirstStartEntry( long endPosition )
     {
         long firstEntryPosition = endPosition;
@@ -1700,12 +1809,12 @@ public class XaLogicalLog
     {
         return getHistoryFileNamePattern( new File( fileName ).getName() );
     }
-    
+
     public static Pattern getHistoryFileNamePattern( String baseFileName )
     {
         return Pattern.compile( baseFileName + "\\.v\\d+" );
     }
-    
+
     public static long getHistoryLogVersion( File historyLogFile )
     {   // Get version based on the name
         String name = historyLogFile.getName();
@@ -1799,7 +1908,7 @@ public class XaLogicalLog
         {
             return false;
         }
-        
+
         @Override
         public long getLastTxChecksum()
         {
@@ -1832,7 +1941,7 @@ public class XaLogicalLog
         {
             return futureQueue.containsKey( nextExpectedTxId );
         }
-        
+
         @Override
         public long getLastTxChecksum()
         {

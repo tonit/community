@@ -30,7 +30,7 @@ import org.neo4j.graphdb.TransactionFailureException;
  * transaction and then either rollbacks or commits them. Here are two example
  * implementations:
  * <p>
- * 
+ *
  * <pre>
  * <CODE>
  * // Example of XaTransaction implementation where commands are written to
@@ -38,31 +38,31 @@ import org.neo4j.graphdb.TransactionFailureException;
  * public class MyTransaction extends XaTransaction
  * {
  *     private List cmds = new java.util.LinkedList();
- * 
+ *
  *     public boolean isReadyOnly()
  *     {
  *         return cmds.size() == 0;
  *     }
- * 
+ *
  *     public void doAddCommand( XaCommand cmd )
  *     {
  *         cmds.add( cmd );
  *     }
- * 
+ *
  *     public void doRollback()
  *     {
  *         Iterator itr = cmds.iterator();
  *         while ( itr.hasNext() )
  *             ((XaCommand) itr.next()).rollback();
  *     }
- * 
+ *
  *     public void doCommit()
  *     {
  *         Iterator itr = cmds.iterator();
  *         while ( itr.hasNext() )
  *             ((XaCommand) itr.next()).execute();
  *     }
- * 
+ *
  *     public void doPrepare()
  *     {
  *         // do nothing since commands are added before prepare
@@ -70,10 +70,10 @@ import org.neo4j.graphdb.TransactionFailureException;
  * }
  * <CODE>
  * </pre>
- * 
+ *
  * Some other implementation that makes use of prepare could look something like
  * this:
- * 
+ *
  * <pre>
  * <CODE>
  * // Example of XaTransaction implementation where commands are written to
@@ -81,38 +81,38 @@ import org.neo4j.graphdb.TransactionFailureException;
  * public class MyTransaction extends XaTransaction
  * {
  *     private List cmds = new java.util.LinkedList();
- * 
+ *
  *     public boolean isReadyOnly()
  *     {
  *         return cmds.size() == 0;
  *     }
- * 
+ *
  *     public void doAddCommand( XaCommand cmd )
  *     {
- *         // do nothing, we call addCommand in prepare 
+ *         // do nothing, we call addCommand in prepare
  *     }
- * 
+ *
  *     public void doRollback()
  *     {
  *         Iterator itr = cmds.iterator();
  *         while ( itr.hasNext() )
  *             ((XaCommand) itr.next()).rollback();
  *     }
- * 
+ *
  *     public void doCommit()
  *     {
  *         Iterator itr = cmds.iterator();
  *         while ( itr.hasNext() )
  *             ((XaCommand) itr.next()).execute();
  *     }
- * 
+ *
  *     public void doPrepare()
  *     {
  *         Iterator itr = cmds.iterator();
  *         while ( itr.hasNext() )
  *             addCommand( (XaCommand) itr.next() );
  *     }
- * 
+ *
  * }
  * </CODE>
  * </pre>
@@ -122,7 +122,7 @@ public abstract class XaTransaction
     /**
      * Returns <CODE>true</CODE> if read only transaction, that is no
      * modifications will be made once the transaction commits.
-     * 
+     *
      * @return true if read only transaction
      */
     public abstract boolean isReadOnly();
@@ -132,7 +132,7 @@ public abstract class XaTransaction
      * The <CODE>XaTransaction</CODE> needs to hold all the commands in memory
      * until it receives the <CODE>doCommit</CODE> or <CODE>doRollback</CODE>
      * call.
-     * 
+     *
      * @param command
      *            The command to be added to transaction
      */
@@ -140,7 +140,7 @@ public abstract class XaTransaction
 
     /**
      * Rollbacks the transaction, loop through all commands and invoke <CODE>rollback()</CODE>.
-     * 
+     *
      * @throws XAException
      *             If unable to rollback
      */
@@ -148,16 +148,16 @@ public abstract class XaTransaction
 
     /**
      * Called when transaction is beeing prepared.
-     * 
+     *
      * @throws XAException
      *             If unable to prepare
      */
     protected abstract void doPrepare() throws XAException;
 
     /**
-     * Commits the transaction, loop through all commands and invoke 
+     * Commits the transaction, loop through all commands and invoke
      * <CODE>execute()</CODE>.
-     * 
+     *
      * @throws XAEXception
      *             If unable to commit
      */
@@ -169,10 +169,11 @@ public abstract class XaTransaction
     private boolean committed = false;
     private boolean rolledback = false;
     private boolean prepared = false;
-    
+    private final long creationTime;
+
     private long commitTxId = -1;
 
-    public XaTransaction( int identifier, XaLogicalLog log )
+    public XaTransaction( int identifier, XaLogicalLog log, long creationTime )
     {
         if ( log == null )
         {
@@ -180,6 +181,12 @@ public abstract class XaTransaction
         }
         this.identifier = identifier;
         this.log = log;
+        this.creationTime = creationTime;
+    }
+
+    public long getCreationTime()
+    {
+        return creationTime;
     }
 
     /**
@@ -193,7 +200,7 @@ public abstract class XaTransaction
 
     /**
      * Returns <CODE>true</CODE> if this is a "recovered transaction".
-     * 
+     *
      * @return <CODE>true</CODE> if transaction was created during a recovery
      *         else <CODE>false</CODE> is returned
      */
@@ -205,7 +212,7 @@ public abstract class XaTransaction
     /**
      * Returns the "internal" identifier for this transaction. See
      * {@link XaLogicalLog#getCurrentTxIdentifier}.
-     * 
+     *
      * @return The transaction identifier
      */
     public final int getIdentifier()
@@ -217,7 +224,7 @@ public abstract class XaTransaction
      * Adds the command to transaction. First writes the command to the logical
      * log then calls {@link #doAddCommand}. Also check
      * {@link XaConnectionHelpImpl} class documentation example.
-     * 
+     *
      * @param command
      *            The command to add to transaction
      * @throws RuntimeException
@@ -251,7 +258,7 @@ public abstract class XaTransaction
     /**
      * Used during recovery, calls {@link #doAddCommand}. Injects the command
      * into the transaction without writing to the logical log.
-     * 
+     *
      * @param command
      *            The command that will be injected
      */
@@ -262,7 +269,7 @@ public abstract class XaTransaction
 
     /**
      * Rollbacks the transaction, calls {@link #doRollback}.
-     * 
+     *
      * @throws XAException
      *             If unable to rollback
      */
@@ -281,7 +288,7 @@ public abstract class XaTransaction
     /**
      * Called before prepare marker is written to logical log. Calls
      * {@link #doPrepare()}.
-     * 
+     *
      * @throws XAException
      *             if unable to prepare
      */
@@ -302,7 +309,7 @@ public abstract class XaTransaction
     /**
      * First registers the transaction identifier (see
      * {@link XaLogicalLog#getCurrentTxIdentifier} then calls {@link #doCommit}.
-     * 
+     *
      * @throws XAException
      *             If unable to commit
      */
@@ -323,12 +330,12 @@ public abstract class XaTransaction
             log.unregisterTxIdentifier();
         }
     }
-    
+
     public synchronized long getCommitTxId()
     {
         return commitTxId;
     }
-    
+
     public synchronized void setCommitTxId( long commitTxId )
     {
         this.commitTxId = commitTxId;
