@@ -46,7 +46,7 @@ public class RevertibleXaTransaction
         this.creationTime = creationTime;
     }
 
-    protected void addCommand( XaCommand command )
+    public void addCommand( XaCommand command )
     {
         commands.add( command );
     }
@@ -77,7 +77,7 @@ public class RevertibleXaTransaction
      * Given a ByteBuffer as scratch space and a channel that contains a
      * RevertibleTransaction, it returns the RevertibleTransaction that
      * was stored there, null if incomplete (no Done record)
-     * 
+     *
      * @param buffer A buffer to use as scratch space
      * @param channel The channel that holds the RevertibleTransaction,
      *            positioned at its start.

@@ -21,7 +21,12 @@ package org.neo4j.kernel.impl.transaction.xaframework;
 
 import java.io.IOException;
 
-public interface LogApplier
+public interface LogDeserializer
 {
-    void apply( LogEntry entry ) throws IOException;
+    boolean readAndWriteAndApplyEntry( int newXidIdentifier )
+            throws IOException;
+
+    LogEntry.Start getStartEntry();
+
+    LogEntry.Commit getCommitEntry();
 }

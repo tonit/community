@@ -19,9 +19,15 @@
  */
 package org.neo4j.kernel.impl.transaction.xaframework;
 
-import java.io.IOException;
+import java.nio.channels.ReadableByteChannel;
 
-public interface LogApplier
+public class VerifyingLogDeserializerFactory implements LogDeserializerFactory
 {
-    void apply( LogEntry entry ) throws IOException;
+    @Override
+    public LogDeserializer getLogApplier( ReadableByteChannel byteChannel,
+            LogBuffer writeBuffer, LogApplier applier, XaCommandFactory cf )
+    {
+        return new VerifyingLogDeserializer( byteChannel, writeBuffer, applier,
+                cf );
+    }
 }

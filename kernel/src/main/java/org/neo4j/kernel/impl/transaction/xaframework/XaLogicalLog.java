@@ -97,7 +97,7 @@ public class XaLogicalLog
 
     private final String storeDir;
     private final LogBufferFactory logBufferFactory;
-    private final LogApplierFactory logApplierFactory;
+    private final LogDeserializerFactory logApplierFactory;
     private boolean doingRecovery;
     private long lastRecoveredTx = -1;
     private long recoveredTxCount;
@@ -117,14 +117,14 @@ public class XaLogicalLog
         this.cf = cf;
         this.xaTf = xaTf;
         this.logBufferFactory = (LogBufferFactory) config.get( LogBufferFactory.class );
-        LogApplierFactory tempLogApplierFactory = (LogApplierFactory) config.get( LogApplierFactory.class );
+        LogDeserializerFactory tempLogApplierFactory = (LogDeserializerFactory) config.get( LogDeserializerFactory.class );
         if ( tempLogApplierFactory != null )
         {
             logApplierFactory = tempLogApplierFactory;
         }
         else
         {
-            logApplierFactory = new DefaultLogApplierFactory();
+            logApplierFactory = new VerifyingLogDeserializerFactory();
         }
         log = Logger.getLogger( this.getClass().getName() + File.separator + fileName );
         sharedBuffer = ByteBuffer.allocateDirect( 9 + Xid.MAXGTRIDSIZE
@@ -1323,25 +1323,30 @@ public class XaLogicalLog
         return file.exists() ? FileUtils.deleteFile( file ) : false;
     }
 
-    private class DefaultLogApplierFactory implements LogApplierFactory
+    private class DefaultLogDeserializerFactory implements
+            LogDeserializerFactory
     {
         @Override
-        public LogApplier getLogApplier( ReadableByteChannel byteChannel )
+        public LogDeserializer getLogApplier( ReadableByteChannel byteChannel,
+                LogBuffer buffer, LogApplier applier, XaCommandFactory cf )
         {
-            return new LogApplierImpl( byteChannel );
+            return new LogDeserializerImpl( byteChannel, applier );
         }
     }
 
-    private class LogApplierImpl implements LogApplier
+    private class LogDeserializerImpl implements LogDeserializer
     {
         private final ReadableByteChannel byteChannel;
+        private final LogApplier applier;
 
         private LogEntry.Start startEntry;
         private LogEntry.Commit commitEntry;
 
-        LogApplierImpl( ReadableByteChannel byteChannel )
+        protected LogDeserializerImpl( ReadableByteChannel byteChannel,
+                LogApplier applier )
         {
             this.byteChannel = byteChannel;
+            this.applier = applier;
         }
 
         @Override
@@ -1362,22 +1367,14 @@ public class XaLogicalLog
                     startEntry = (LogEntry.Start) entry;
                 }
 
-                afterReadBeforeWrite( entry );
                 LogIoUtils.writeLogEntry( entry, writeBuffer );
-                afterWriteBeforeApply( entry );
-                applyEntry( entry );
-                afterApply( entry );
+                applier.apply( entry );
                 return true;
             }
             return false;
         }
 
         @Override
-        public ReadableByteChannel getChannel()
-        {
-            return byteChannel;
-        }
-
         public LogEntry.Start getStartEntry()
         {
             return startEntry;
@@ -1387,61 +1384,6 @@ public class XaLogicalLog
         public LogEntry.Commit getCommitEntry()
         {
             return commitEntry;
-        }
-
-        protected void afterReadBeforeWrite( LogEntry entry )
-        {
-        }
-
-        protected void afterWriteBeforeApply( LogEntry entry )
-        {
-        }
-
-        protected void afterApply( LogEntry entry )
-        {
-        }
-    }
-
-    private class VerifyingLogApplier extends LogApplierImpl
-    {
-        private RevertibleXaTransaction undo;
-
-        VerifyingLogApplier( ReadableByteChannel byteChannel )
-        {
-            super( byteChannel );
-        }
-
-        @Override
-        protected void afterReadBeforeWrite( LogEntry entry )
-        {
-            if (undo == null)
-            {
-                // Start is always the first entry
-                undo = new RevertibleXaTransaction( getStartEntry().getIdentifier(), getStartEntry().getTimeWritten() );
-            }
-        }
-
-        @Override
-        protected void afterWriteBeforeApply( LogEntry entry )
-        {
-            if ( getCommitEntry() != null )
-            {
-                assert undo != null;
-                try
-                {
-                    undo.writeOut( null );
-                }
-                catch ( IOException e )
-                {
-                    e.printStackTrace();
-                }
-            }
-        }
-
-        @Override
-        protected void afterApply( LogEntry entry )
-        {
-
         }
     }
 
@@ -1473,7 +1415,15 @@ public class XaLogicalLog
 
         long logEntriesFound = 0;
         scanIsComplete = false;
-        LogApplier logApplier = logApplierFactory.getLogApplier( byteChannel );
+        LogDeserializer logApplier = logApplierFactory.getLogApplier(
+                byteChannel, writeBuffer, new LogApplier()
+                {
+                    @Override
+                    public void apply( LogEntry entry ) throws IOException
+                    {
+                        applyEntry( entry );
+                    }
+                }, cf );
         int xidIdent = getNextIdentifier();
         long startEntryPosition = writeBuffer.getFileChannelPosition();
         while ( logApplier.readAndWriteAndApplyEntry( xidIdent ) )
@@ -1527,7 +1477,16 @@ public class XaLogicalLog
 //        System.out.println( "applyFullTx#start @ pos: " + writeBuffer.getFileChannelPosition() );
         long logEntriesFound = 0;
         scanIsComplete = false;
-        LogApplier logApplier = logApplierFactory.getLogApplier( byteChannel );
+        LogDeserializer logApplier = logApplierFactory.getLogApplier(
+                byteChannel, writeBuffer, new LogApplier()
+                {
+                    @Override
+                    public void apply( LogEntry entry ) throws IOException
+                    {
+                        applyEntry( entry );
+
+                    }
+                }, cf );
         int xidIdent = getNextIdentifier();
         long startEntryPosition = writeBuffer.getFileChannelPosition();
         boolean successfullyApplied = false;
