@@ -33,7 +33,7 @@ import org.neo4j.kernel.impl.util.StringLogger;
 /**
  * Implementation of the property store.
  */
-public class PropertyIndexStore extends AbstractStore implements Store
+public class PropertyIndexStore extends AbstractStore implements Store, RecordStore<PropertyIndexRecord>
 {
     public static final String TYPE_DESCRIPTOR = "PropertyIndexStore";
 
@@ -47,6 +47,12 @@ public class PropertyIndexStore extends AbstractStore implements Store
     public PropertyIndexStore( String fileName, Map<?,?> config )
     {
         super( fileName, config, IdType.PROPERTY_INDEX );
+    }
+
+    @Override
+    public void accept( RecordStore.Processor processor, PropertyIndexRecord record )
+    {
+        // do nothing - processing does nothing for this store
     }
 
     @Override
@@ -178,14 +184,13 @@ public class PropertyIndexStore extends AbstractStore implements Store
         }
     }
 
-    @Override
-    public PropertyIndexRecord getRecord( long id )
+    public PropertyIndexRecord getRecord( int id )
     {
         PropertyIndexRecord record;
         PersistenceWindow window = acquireWindow( id, OperationType.READ );
         try
         {
-            record = getRecord( (int) id, window );
+            record = getRecord( id, window, false );
         }
         finally
         {
@@ -200,6 +205,26 @@ public class PropertyIndexStore extends AbstractStore implements Store
         return record;
     }
 
+    @Override
+    public PropertyIndexRecord getRecord( long id )
+    {
+        return getRecord( (int) id );
+    }
+
+    @Override
+    public PropertyIndexRecord forceGetRecord( long id )
+    {
+        PersistenceWindow window = acquireWindow( id, OperationType.READ );
+        try
+        {
+            return getRecord( (int) id, window, true );
+        }
+        finally
+        {
+            releaseWindow( window );
+        }
+    }
+
     public Collection<DynamicRecord> allocateKeyRecords( int keyBlockId, byte[] chars )
     {
         return keyPropertyStore.allocateRecords( keyBlockId, chars );
@@ -210,7 +235,7 @@ public class PropertyIndexStore extends AbstractStore implements Store
         PersistenceWindow window = acquireWindow( id, OperationType.READ );
         try
         {
-            PropertyIndexRecord record = getRecord( id, window );
+            PropertyIndexRecord record = getRecord( id, window, false );
             record.setIsLight( true );
             return record;
         }
@@ -256,16 +281,31 @@ public class PropertyIndexStore extends AbstractStore implements Store
         }
     }
 
+    @Override
+    public void forceUpdateRecord( PropertyIndexRecord record )
+    {
+        PersistenceWindow window = acquireWindow( record.getId(),
+                OperationType.WRITE );
+        try
+        {
+            updateRecord( record, window );
+        }
+        finally
+        {
+            releaseWindow( window );
+        }
+    }
+
     public int nextKeyBlockId()
     {
         return (int) keyPropertyStore.nextBlockId();
     }
 
-    private PropertyIndexRecord getRecord( int id, PersistenceWindow window )
+    private PropertyIndexRecord getRecord( int id, PersistenceWindow window, boolean force )
     {
         Buffer buffer = window.getOffsettedBuffer( id );
         boolean inUse = (buffer.get() == Record.IN_USE.byteValue());
-        if ( !inUse )
+        if ( !inUse && !force )
         {
             throw new InvalidRecordException( "Record[" + id + "] not in use" );
         }
