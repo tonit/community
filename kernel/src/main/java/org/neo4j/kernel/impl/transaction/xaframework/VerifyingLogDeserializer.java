@@ -71,6 +71,8 @@ public class VerifyingLogDeserializer implements LogDeserializer
         LogEntry entry = LogIoUtils.readEntry( scratchBuffer, byteChannel, cf );
         if ( entry == null )
         {
+            verify();
+            applyAll();
             return false;
         }
         entry.setIdentifier( newXidIdentifier );
@@ -80,8 +82,6 @@ public class VerifyingLogDeserializer implements LogDeserializer
             assert startEntry != null;
             assert undo != null; // not strictly needed
             commitEntry = (LogEntry.Commit) entry;
-            verify();
-            applyAll();
         }
         else if ( entry instanceof LogEntry.Start )
         {
@@ -96,7 +96,6 @@ public class VerifyingLogDeserializer implements LogDeserializer
             undo.addCommand( ( (LogEntry.Command) entry ).getXaCommand() );
         }
 
-        LogIoUtils.writeLogEntry( entry, writeBuffer );
         return true;
     }
 
@@ -114,13 +113,13 @@ public class VerifyingLogDeserializer implements LogDeserializer
 
     private void verify()
     {
-
     }
 
     private void applyAll() throws IOException
     {
         for ( LogEntry entry : entriesRead )
         {
+            LogIoUtils.writeLogEntry( entry, writeBuffer );
             applier.apply( entry );
         }
     }

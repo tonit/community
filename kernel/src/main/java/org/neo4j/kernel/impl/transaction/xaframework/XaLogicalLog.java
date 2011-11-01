@@ -124,7 +124,7 @@ public class XaLogicalLog
         }
         else
         {
-            logApplierFactory = new VerifyingLogDeserializerFactory();
+            logApplierFactory = new DefaultLogDeserializerFactory();
         }
         log = Logger.getLogger( this.getClass().getName() + File.separator + fileName );
         sharedBuffer = ByteBuffer.allocateDirect( 9 + Xid.MAXGTRIDSIZE
@@ -1353,14 +1353,16 @@ public class XaLogicalLog
         public boolean readAndWriteAndApplyEntry( int newXidIdentifier )
                 throws IOException
         {
-            LogEntry entry = LogIoUtils.readEntry( sharedBuffer, byteChannel, cf );
+            LogEntry entry = LogIoUtils.readEntry( sharedBuffer, byteChannel,
+                    cf );
             if ( entry != null )
             {
                 entry.setIdentifier( newXidIdentifier );
                 if ( entry instanceof LogEntry.Commit )
                 {
                     commitEntry = (LogEntry.Commit) entry;
-//                    msgLog.logMessage( "Applying external tx: " + ((LogEntry.Commit) entry).getTxId(), true );
+                    // msgLog.logMessage( "Applying external tx: " +
+                    // ((LogEntry.Commit) entry).getTxId(), true );
                 }
                 else if ( entry instanceof LogEntry.Start )
                 {
