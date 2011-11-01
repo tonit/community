@@ -36,6 +36,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.helpers.Exceptions;
+import org.neo4j.helpers.Service;
 import org.neo4j.helpers.UTF8;
 import org.neo4j.helpers.collection.ClosableIterable;
 import org.neo4j.kernel.Config;
@@ -50,8 +51,7 @@ import org.neo4j.kernel.impl.nioneo.store.WindowPoolStats;
 import org.neo4j.kernel.impl.persistence.IdGenerationFailedException;
 import org.neo4j.kernel.impl.transaction.LockManager;
 import org.neo4j.kernel.impl.transaction.xaframework.LogBackedXaDataSource;
-import org.neo4j.kernel.impl.transaction.xaframework.LogDeserializerFactory;
-import org.neo4j.kernel.impl.transaction.xaframework.VerifyingLogDeserializerFactory;
+import org.neo4j.kernel.impl.transaction.xaframework.LogDeserializerProvider;
 import org.neo4j.kernel.impl.transaction.xaframework.XaCommand;
 import org.neo4j.kernel.impl.transaction.xaframework.XaCommandFactory;
 import org.neo4j.kernel.impl.transaction.xaframework.XaConnection;
@@ -137,8 +137,28 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         }
 
         neoStore = new NeoStore( config );
-        config.put( LogDeserializerFactory.class,
-                new VerifyingLogDeserializerFactory() );
+
+        String deserializerProviderName = (String) config.get( Config.LOG_DESERIALIZER_IMPLEMENTATION );
+        LogDeserializerProvider deserializerProvider;
+        if ( deserializerProviderName == null
+             || deserializerProviderName.equals( "native" ) )
+        {
+            deserializerProvider = null;
+        }
+        else
+        {
+            deserializerProvider = Service.load( LogDeserializerProvider.class,
+                    deserializerProviderName );
+            if ( deserializerProvider == null )
+            {
+                throw new IllegalStateException(
+                        "Unknown log deserializer provide name "
+                                + deserializerProviderName );
+            }
+        }
+
+        config.put( LogDeserializerProvider.class, deserializerProvider );
+
         xaContainer = XaContainer.create( this, (String) config.get( "logical_log" ),
                 new CommandFactory( neoStore ), new TransactionFactory(), config );
         try

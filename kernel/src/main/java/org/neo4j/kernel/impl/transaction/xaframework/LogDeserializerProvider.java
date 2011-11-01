@@ -21,13 +21,16 @@ package org.neo4j.kernel.impl.transaction.xaframework;
 
 import java.nio.channels.ReadableByteChannel;
 
-public class VerifyingLogDeserializerFactory implements LogDeserializerFactory
+import org.neo4j.helpers.Service;
+
+public abstract class LogDeserializerProvider extends Service
 {
-    @Override
-    public LogDeserializer getLogApplier( ReadableByteChannel byteChannel,
-            LogBuffer writeBuffer, LogApplier applier, XaCommandFactory cf )
+    public LogDeserializerProvider( String name )
     {
-        return new VerifyingLogDeserializer( byteChannel, writeBuffer, applier,
-                cf );
+        super( name );
     }
+
+    public abstract LogDeserializer getLogApplier(
+            ReadableByteChannel byteChannel,
+            LogBuffer writeBuffer, LogApplier applier, XaCommandFactory cf );
 }

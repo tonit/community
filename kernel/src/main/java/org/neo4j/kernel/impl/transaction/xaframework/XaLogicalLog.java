@@ -97,7 +97,7 @@ public class XaLogicalLog
 
     private final String storeDir;
     private final LogBufferFactory logBufferFactory;
-    private final LogDeserializerFactory logApplierFactory;
+    private final LogDeserializerProvider logApplierFactory;
     private boolean doingRecovery;
     private long lastRecoveredTx = -1;
     private long recoveredTxCount;
@@ -117,14 +117,14 @@ public class XaLogicalLog
         this.cf = cf;
         this.xaTf = xaTf;
         this.logBufferFactory = (LogBufferFactory) config.get( LogBufferFactory.class );
-        LogDeserializerFactory tempLogApplierFactory = (LogDeserializerFactory) config.get( LogDeserializerFactory.class );
+        LogDeserializerProvider tempLogApplierFactory = (LogDeserializerProvider) config.get( LogDeserializerProvider.class );
         if ( tempLogApplierFactory != null )
         {
             logApplierFactory = tempLogApplierFactory;
         }
         else
         {
-            logApplierFactory = new DefaultLogDeserializerFactory();
+            logApplierFactory = new DefaultLogDeserializerProvider();
         }
         log = Logger.getLogger( this.getClass().getName() + File.separator + fileName );
         sharedBuffer = ByteBuffer.allocateDirect( 9 + Xid.MAXGTRIDSIZE
@@ -1323,9 +1323,14 @@ public class XaLogicalLog
         return file.exists() ? FileUtils.deleteFile( file ) : false;
     }
 
-    private class DefaultLogDeserializerFactory implements
-            LogDeserializerFactory
+    private class DefaultLogDeserializerProvider extends
+            LogDeserializerProvider
     {
+        public DefaultLogDeserializerProvider()
+        {
+            super( "native" );
+        }
+
         @Override
         public LogDeserializer getLogApplier( ReadableByteChannel byteChannel,
                 LogBuffer buffer, LogApplier applier, XaCommandFactory cf )
