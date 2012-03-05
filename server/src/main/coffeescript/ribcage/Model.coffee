@@ -17,23 +17,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ###
+define ['lib/amd/Backbone'], (Backbone) ->
+  
+  class Model extends Backbone.Model
 
-define ['ribcage/Model'], (Model) ->
-
-  class Queue extends Model
-
-    constructor : () ->
-      @queue = []
-
-    pull : () =>
-      item = @queue.shift()
-      @trigger("item:pulled", this, item)
-      return item
-      
-    push : (item) =>
-      @queue.push(item)
-      @trigger("item:pushed", this, item)
-
-    hasMoreItems : () =>
-      @queue.length > 0
-
+    

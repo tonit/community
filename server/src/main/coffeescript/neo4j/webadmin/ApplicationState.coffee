@@ -20,8 +20,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 define(
   ['./Settings'
-   'lib/backbone'], 
-  (Settings) ->
+   'lib/amd/Backbone'], 
+  (Settings,Backbone) ->
   
     class ApplicationState extends Backbone.Model
       
