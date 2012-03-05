@@ -23,7 +23,7 @@ define(
    './console'
    'ribcage/View'
    'lib/amd/jQuery'
-   'lib/amd/InputCursorController'], 
+   'lib/amd/jQuery.putCursorAtEnd'], 
   (baseTemplate, consoleTemplate, View, $ ) ->
 
     class ConsoleView extends View
