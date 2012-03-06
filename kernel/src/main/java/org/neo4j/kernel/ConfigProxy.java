@@ -71,8 +71,9 @@ public class ConfigProxy
         String prefix = annotation == null ? "" : annotation.value();
 
         String key = prefix + configName;
-        Object val = parameters.get( key );
+        String val = parameters.get( key );
         
+        // No value in given map for this key - use default if possible
         if (val == null)
         {
             if (args != null && args.length > 0)
@@ -81,27 +82,43 @@ public class ConfigProxy
                 throw new IllegalArgumentException("Missing configuration parameter for "+method.getDeclaringClass().getName()+":"+key);
         }
         
+        Object result = val;
+        
         //Convert if necessary
         Class<?> returnType = method.getReturnType();
-        if (!returnType.equals(val.getClass()))
+        if (!returnType.equals(String.class))
         {
             try
             {
                 if (returnType.equals(Boolean.class) || returnType.equals(Boolean.TYPE))
-                    val = val.toString().equalsIgnoreCase("true") || val.toString().equalsIgnoreCase("yes"); // Support both true/false and yes/no
+                    result = val.equalsIgnoreCase( "true" ) || val.equalsIgnoreCase( "yes" ); // Support both true/false and yes/no
                 else if (returnType.equals(Integer.class) || returnType.equals(Integer.TYPE))
-                    val = Integer.parseInt(val.toString());
+                    result = rangeCheck( Integer.parseInt( val ), args );
+                else if (returnType.equals(int[].class))
+                {
+                    String[] range = val.split( "-" );
+                    if (range.length == 1)
+                        result = new int[]{rangeCheck(Integer.parseInt( val ), args), rangeCheck(Integer.parseInt( val ), args)};
+                    else
+                    {
+                        int[] ints = { rangeCheck( Integer.parseInt( range[ 0 ] ), args ), rangeCheck( Integer.parseInt( range[ 1 ] ), args ) };
+                        if (ints[1]<ints[0])
+                            throw new IllegalArgumentException( "Value for configuration parameter '"+key+"' is not valid:"+val+". First number must be smaller than second number");
+
+                        result = ints;
+                    }
+                }
                 else if (returnType.equals(Long.class) || returnType.equals(Long.TYPE))
-                    val = Long.parseLong(val.toString());
+                    result = rangeCheck(Long.parseLong( val ), args);
                 else if (returnType.equals(Float.class) || returnType.equals(Float.TYPE))
-                    val = Float.parseFloat(val.toString());
+                    result = rangeCheck(Float.parseFloat( val ), args);
                 else if (returnType.equals(Double.class) || returnType.equals(Double.TYPE))
-                    val = Double.parseDouble(val.toString());
+                    result = rangeCheck(Double.parseDouble( val ), args);
                 else if (returnType.isEnum())
                 {
                     try
                     {
-                        val = Enum.valueOf((Class<Enum>) returnType, val.toString().toLowerCase());
+                        result = Enum.valueOf((Class<Enum>) returnType, val.toLowerCase());
                     }
                     catch( IllegalArgumentException e )
                     {
@@ -109,7 +126,7 @@ public class ConfigProxy
                         if (args != null && args.length > 0)
                         {
                             log.warning("Value for configuration parameter '"+key+"' is not valid:"+val+". Please use one of "+options+". Using default instead:"+args[0]);
-                            val = args[0];
+                            result = args[0];
                         } else
                         {
                             throw new IllegalArgumentException( "Value for configuration parameter '"+key+"' is not valid:"+val+". Please use one of "+options);
@@ -122,45 +139,50 @@ public class ConfigProxy
                 if (args != null && args.length > 0)
                 {
                     log.warning("Number for configuration parameter '"+key+"' has wrong format:"+val+" Using default instead:"+args[0]);
-                    val = args[0];
+                    result = args[0];
                 } else
                 {
                     throw e;
                 }
             }
 
-            // Range checks
-            if (val instanceof Number && args != null && args.length == 3)
-            {
-                if (val instanceof Float)
-                {
-                    if (((Float) val).compareTo((Float) args[1]) < 0)
-                        val = args[1];
-                    else if (((Float) val).compareTo((Float) args[2]) > 0)
-                        val = args[2];
-                } else if (val instanceof Double)
-                {
-                    if (((Double) val).compareTo((Double) args[1]) < 0)
-                        val = args[1];
-                    else if (((Double) val).compareTo((Double) args[2]) > 0)
-                        val = args[2];
-                } else if (val instanceof Integer)
-                {
-                    if (((Integer) val).compareTo((Integer) args[1]) < 0)
-                        val = args[1];
-                    else if (((Integer) val).compareTo((Integer) args[2]) > 0)
-                        val = args[2];
-                } else if (val instanceof Long)
-                {
-                    if (((Long) val).compareTo((Long) args[1]) < 0)
-                        val = args[1];
-                    else if (((Long) val).compareTo((Long) args[2]) > 0)
-                        val = args[2];
-                }
-            }
         }
 
         // Default just return the value - might blow up though
-        return val;
+        return result;
+    }
+    
+    private <T extends Number> T rangeCheck(T result, Object[] args)
+    {
+        if (args != null && args.length == 3)
+        {
+            if (result instanceof Float)
+            {
+                if (((Float) result).compareTo((Float) args[1]) < 0)
+                    result = (T) args[1];
+                else if (((Float) result).compareTo((Float) args[2]) > 0)
+                    result = (T) args[2];
+            } else if (result instanceof Double)
+            {
+                if (((Double) result).compareTo((Double) args[1]) < 0)
+                    result = (T)args[1];
+                else if (((Double) result).compareTo((Double) args[2]) > 0)
+                    result = (T)args[2];
+            } else if (result instanceof Integer)
+            {
+                if (((Integer) result).compareTo((Integer) args[1]) < 0)
+                    result = (T)args[1];
+                else if (((Integer) result).compareTo((Integer) args[2]) > 0)
+                    result = (T)args[2];
+            } else if (result instanceof Long)
+            {
+                if (((Long) result).compareTo((Long) args[1]) < 0)
+                    result = (T)args[1];
+                else if (((Long) result).compareTo((Long) args[2]) > 0)
+                    result = (T)args[2];
+            }
+        }
+
+        return result;
     }
 }

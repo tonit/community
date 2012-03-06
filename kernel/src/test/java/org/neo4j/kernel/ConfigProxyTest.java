@@ -47,7 +47,9 @@ public class ConfigProxyTest
         double doubleValueMinMax(double def, double min, double max);
         long longValueMinMax(long def, long min, long max);
         int integerValueMinMax(int def, int min, int max);
-        
+        int[] integerRange(int[] def);
+        int[] integerRangeMinMax(int[] def,int min, int max);
+
         boolean boolDefined();
         boolean boolNotDefined();
         boolean boolNotDefinedWithDefault(boolean def);
@@ -77,7 +79,9 @@ public class ConfigProxyTest
         map.put("doubleValueMinMax", "3.0");
         map.put("longValueMinMax", "3");
         map.put("integerValueMinMax", "3");
-        
+        map.put("integerRange", "3-10");
+        map.put("integerRangeMinMax", "3-10");
+
         Configuration conf = ConfigProxy.config(map, Configuration.class);
         Assert.assertThat(conf.floatValueMinMax(4, 1, 5), equalTo( 3.0F ));
         Assert.assertThat(conf.floatValueMinMax(4, 5, 7), equalTo( 5.0F ));
@@ -94,6 +98,23 @@ public class ConfigProxyTest
         Assert.assertThat(conf.integerValueMinMax(4, 1, 5), equalTo( 3 ));
         Assert.assertThat(conf.integerValueMinMax(4, 5, 7), equalTo( 5 ));
         Assert.assertThat(conf.integerValueMinMax(4, 1, 2), equalTo( 2 ));
+        
+        Assert.assertThat( conf.integerRange( new int[]{2,7} ), equalTo( new int[]{3,10} ) );
+        map.put( "integerRange", "5" );
+        Assert.assertThat( conf.integerRange( new int[]{ 2, 7 } ), equalTo( new int[]{ 5, 5 } ) );
+
+        Assert.assertThat( conf.integerRangeMinMax( new int[]{ 2, 9 }, 6, 7 ), equalTo( new int[]{ 6, 7 } ) );
+        map.put( "integerRangeMinMax", "7-5" );
+
+        try
+        {
+            conf.integerRangeMinMax( new int[]{2,9},6,7 );
+            Assert.fail( "Should have thrown exception" );
+        }
+        catch( Exception e )
+        {
+            // Ok!
+        }
 
         // Invalid number format
         map.put("floatValueMinMax", "3x");
