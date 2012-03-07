@@ -20,7 +20,6 @@
 
 package org.neo4j.helpers;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
