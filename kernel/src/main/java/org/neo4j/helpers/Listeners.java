@@ -20,7 +20,6 @@
 
 package org.neo4j.helpers;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -30,6 +29,11 @@ import java.util.List;
  */
 public class Listeners
 {
+    public interface Notification<T>
+    {
+        void notify(T listener);
+    }
+    
     public static <T> Iterable<T> newListeners()
     {
         return new LinkedList<T>();
@@ -47,5 +51,20 @@ public class Listeners
         List<T> newListeners = new LinkedList<T>( (Collection<T>) listeners );
         newListeners.remove( listener );
         return newListeners;
+    }
+    
+    public static <T> void notifyListeners(Iterable<T> listeners, Notification<T> notification)
+    {
+        for( T listener : listeners )
+        {
+            try
+            {
+                notification.notify( listener );
+            }
+            catch( Exception e )
+            {
+                // Ignore
+            }
+        }
     }
 }
