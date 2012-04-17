@@ -576,7 +576,7 @@ public abstract class CommonAbstractStore
 
     protected void createIdGenerator( String fileName )
     {
-        idGeneratorFactory.create( fileSystemAbstraction, fileName );
+        idGeneratorFactory.create( fileSystemAbstraction, fileName, 0 );
     }
 
     protected void openReadOnlyIdGenerator( int recordSize )

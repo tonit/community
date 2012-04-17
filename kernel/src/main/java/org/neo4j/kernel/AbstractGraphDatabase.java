@@ -20,6 +20,8 @@
 
 package org.neo4j.kernel;
 
+import static org.neo4j.helpers.Exceptions.launderedException;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -33,7 +35,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+
 import javax.transaction.TransactionManager;
+
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Node;
@@ -90,6 +94,7 @@ import org.neo4j.kernel.impl.persistence.PersistenceManager;
 import org.neo4j.kernel.impl.persistence.PersistenceSource;
 import org.neo4j.kernel.impl.transaction.AbstractTransactionManager;
 import org.neo4j.kernel.impl.transaction.LockManager;
+import org.neo4j.kernel.impl.transaction.LockManagerImpl;
 import org.neo4j.kernel.impl.transaction.LockType;
 import org.neo4j.kernel.impl.transaction.RagManager;
 import org.neo4j.kernel.impl.transaction.ReadOnlyTxManager;
@@ -116,8 +121,6 @@ import org.neo4j.kernel.logging.LogbackService;
 import org.neo4j.kernel.logging.Loggers;
 import org.neo4j.kernel.logging.Logging;
 import org.neo4j.tooling.GlobalGraphOperations;
-
-import static org.neo4j.helpers.Exceptions.*;
 
 /**
  * Exposes the methods {@link #getManagementBeans(Class)}() a.s.o.
@@ -234,7 +237,7 @@ public abstract class AbstractGraphDatabase
         }
     }
 
-    private void create()
+    protected void create()
     {
         // TODO THIS IS A SMELL - SHOULD BE AVAILABLE THROUGH OTHER MEANS!
         String separator = System.getProperty( "file.separator" );
@@ -717,7 +720,7 @@ public abstract class AbstractGraphDatabase
 
     protected LockManager createLockManager()
     {
-        return new LockManager(ragManager);
+        return new LockManagerImpl( ragManager );
     }
 
     protected Logging createStringLogger()

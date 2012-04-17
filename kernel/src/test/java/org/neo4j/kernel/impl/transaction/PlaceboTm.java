@@ -42,6 +42,13 @@ public class PlaceboTm extends AbstractTransactionManager
         // TODO Auto-generated method stub
 
     }
+    
+    @Override
+    public int getEventIdentifier()
+    {
+        // TODO Auto-generated method stub
+        return 0;
+    }
 
     public int getStatus() throws SystemException
     {
