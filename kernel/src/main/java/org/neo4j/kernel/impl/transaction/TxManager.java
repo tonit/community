@@ -134,6 +134,12 @@ public class TxManager extends AbstractTransactionManager
         logSwitcherFileName = txLogDir + separator + "active_tx_log";
         txLog1FileName = "tm_tx_log.1";
         txLog2FileName = "tm_tx_log.2";
+    }
+
+    @Override
+    public void start()
+        throws Throwable
+    {
         try
         {
             if ( fileSystem.fileExists( logSwitcherFileName ) )
@@ -185,12 +191,7 @@ public class TxManager extends AbstractTransactionManager
             throw logAndReturn("TM startup failure",
                     new TransactionFailureException("Unable to start TM", e));
         }
-    }
-
-    @Override
-    public void start()
-        throws Throwable
-    {
+        
         // Do recovery on start - all Resources should be registered by now
         Iterator<List<TxLog.Record>> danglingRecordList =
             txLog.getDanglingRecords();
@@ -216,12 +217,6 @@ public class TxManager extends AbstractTransactionManager
     @Override
     public void stop()
     {
-    }
-
-    @Override
-    public void shutdown()
-        throws Throwable
-    {
         if ( txLog != null )
         {
             try
@@ -234,6 +229,12 @@ public class TxManager extends AbstractTransactionManager
             }
         }
         msgLog.logMessage( "TM shutting down", true );
+    }
+
+    @Override
+    public void shutdown()
+        throws Throwable
+    {
     }
 
     synchronized TxLog getTxLog() throws IOException

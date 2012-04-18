@@ -69,8 +69,6 @@ public class NeoStore extends AbstractStore
     private long lastCommittedTx = -1;
 
     private final int REL_GRAB_SIZE;
-    private final String fileName;
-    private final Config conf;
     private final LastCommittedTxIdSetter lastCommittedTxIdSetter;
 
     public NeoStore(String fileName, Config conf,
@@ -80,8 +78,6 @@ public class NeoStore extends AbstractStore
                     RelationshipTypeStore relTypeStore, PropertyStore propStore, RelationshipStore relStore, NodeStore nodeStore)
     {
         super( fileName, conf, IdType.NEOSTORE_BLOCK, idGeneratorFactory, fileSystemAbstraction, stringLogger);
-        this.fileName = fileName;
-        this.conf = conf;
         this.lastCommittedTxIdSetter = lastCommittedTxIdSetter;
         this.relTypeStore = relTypeStore;
         this.propStore = propStore;
@@ -141,7 +137,7 @@ public class NeoStore extends AbstractStore
                  * in garbage.
                  * Yes, this has to be fixed to be prettier.
                  */
-                String foundVersion = versionLongToString( getStoreVersion(fileSystemAbstraction, configuration.get( Configuration.neo_store) ));
+                String foundVersion = versionLongToString( getStoreVersion(fileSystemAbstraction, storageFileName ));
                 if ( !CommonAbstractStore.ALL_STORES_VERSION.equals( foundVersion ) )
                 {
                     throw new IllegalStateException(
@@ -208,6 +204,15 @@ public class NeoStore extends AbstractStore
             throw new RuntimeException( e );
         }
     }
+    
+//    @Override
+//    public void start()
+//    {
+//        nodeStore.start();
+//        relStore.start();
+//        propStore.start();
+//        relTypeStore.start();
+//    }
 
     /**
      * Closes the node,relationship,property and relationship type stores.

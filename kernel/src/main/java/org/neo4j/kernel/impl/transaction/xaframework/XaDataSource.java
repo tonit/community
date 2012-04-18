@@ -26,6 +26,7 @@ import java.util.StringTokenizer;
 
 import org.neo4j.helpers.Pair;
 import org.neo4j.helpers.collection.ClosableIterable;
+import org.neo4j.kernel.lifecycle.Lifecycle;
 
 /**
  * <CODE>XaDataSource</CODE> is as a factory for creating
@@ -62,7 +63,7 @@ import org.neo4j.helpers.collection.ClosableIterable;
  * </CODE>
  * </pre>
  */
-public abstract class XaDataSource
+public abstract class XaDataSource implements Lifecycle
 {
     private byte[] branchId = null;
     private String name = null;
@@ -357,5 +358,26 @@ public abstract class XaDataSource
     public LogExtractor getLogExtractor( long startTxId, long endTxIdHint ) throws IOException
     {
         throw new UnsupportedOperationException( getClass().getName() );
+    }
+
+    @Override
+    public void init() throws Throwable
+    {
+    }
+
+    @Override
+    public void start() throws Throwable
+    {
+    }
+
+    @Override
+    public void stop() throws Throwable
+    {
+        close();
+    }
+
+    @Override
+    public void shutdown() throws Throwable
+    {
     }
 }

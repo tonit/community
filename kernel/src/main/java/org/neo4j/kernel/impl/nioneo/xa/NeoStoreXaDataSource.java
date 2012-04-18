@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+
 import org.neo4j.graphdb.DependencyResolver;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
@@ -100,21 +101,27 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
     private static Logger logger = Logger.getLogger(
         NeoStoreXaDataSource.class.getName() );
 
-    private final NeoStore neoStore;
-    private final XaContainer xaContainer;
-    private final ArrayMap<Class<?>,Store> idGenerators;
+    private NeoStore neoStore;
+    private XaContainer xaContainer;
+    private final ArrayMap<Class<?>,Store> idGenerators = new ArrayMap<Class<?>,Store>( (byte)5, false, false );
 
     private final LockManager lockManager;
     private final LockReleaser lockReleaser;
     private final String storeDir;
     private final boolean readOnly;
 
-    private Config config;
     private final List<Pair<TransactionInterceptorProvider, Object>> providers;
 
     private boolean logApplied = false;
 
     private final StringLogger msgLog;
+    private String store;
+    private final TransactionFactory tf;
+    private final StoreFactory sf;
+    private final XaFactory xaFactory;
+    private final Config conf;
+    private final DependencyResolver dependencyResolver;
+    private boolean shouldIntercept;
 
     private enum Diagnostics implements DiagnosticsExtractor<NeoStoreXaDataSource>
     {
@@ -183,16 +190,18 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
                                  List<Pair<TransactionInterceptorProvider, Object>> providers, DependencyResolver dependencyResolver) throws IOException
     {
         super( BRANCH_ID, Config.DEFAULT_DATA_SOURCE_NAME );
-        config = conf;
+        this.conf = conf;
+        this.sf = sf;
+        this.xaFactory = xaFactory;
         this.providers = providers;
+        this.dependencyResolver = dependencyResolver;
 
         readOnly = conf.getBoolean( Configuration.read_only );
         this.lockManager = lockManager;
         this.lockReleaser = lockReleaser;
         msgLog = stringLogger;
         storeDir = conf.get( Configuration.store_dir );
-        String store = conf.get( Configuration.neo_store );
-        File file = new File( store );
+        store = conf.get( Configuration.neo_store );
         if ( !readOnly && !fileSystemAbstraction.fileExists( store ))
         {
             msgLog.logMessage( "Creating new db @ " + store, true );
@@ -200,8 +209,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
             sf.createNeoStore(store).close();
         }
 
-        final TransactionFactory tf;
-        boolean shouldIntercept = conf.getBoolean( Configuration.intercept_committing_transactions );
+        shouldIntercept = conf.getBoolean( Configuration.intercept_committing_transactions );
         if ( shouldIntercept && !providers.isEmpty() )
         {
             tf = new InterceptingTransactionFactory( dependencyResolver );
@@ -210,6 +218,11 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
         {
             tf = new TransactionFactory();
         }
+    }
+    
+    @Override
+    public void start() throws Throwable
+    {
         neoStore = sf.newNeoStore(store);
         
         xaContainer = xaFactory.newXaContainer(this, conf.get( Configuration.logical_log ), new CommandFactory( neoStore ), tf,
@@ -238,7 +251,6 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
                 logger.fine( "Waiting for TM to take care of recovered " +
                     "transactions." );
             }
-            idGenerators = new ArrayMap<Class<?>,Store>( (byte)5, false, false );
             this.idGenerators.put( Node.class, neoStore.getNodeStore() );
             this.idGenerators.put( Relationship.class,
                 neoStore.getRelationshipStore() );
@@ -285,7 +297,7 @@ public class NeoStoreXaDataSource extends LogBackedXaDataSource
     {
         return neoStore;
     }
-
+    
     @Override
     public void close()
     {

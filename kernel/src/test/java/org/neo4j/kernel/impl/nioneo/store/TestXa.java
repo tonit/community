@@ -42,6 +42,7 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.helpers.Exceptions;
 import org.neo4j.helpers.Pair;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.AbstractGraphDatabase;
@@ -425,10 +426,19 @@ public class TestXa extends AbstractNeo4jTestCase
 
         PlaceboTm txManager = new PlaceboTm();
         LogBufferFactory logBufferFactory = new DefaultLogBufferFactory();
-        return new NeoStoreXaDataSource( config, sf, fileSystem, lockManager, lockReleaser, StringLogger.DEV_NULL,
+        NeoStoreXaDataSource result = new NeoStoreXaDataSource( config, sf, fileSystem, lockManager, lockReleaser, StringLogger.DEV_NULL,
                 new XaFactory(config, TxIdGenerator.DEFAULT, txManager,
                         logBufferFactory, fileSystem, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID),
         Collections.<Pair<TransactionInterceptorProvider,Object>>emptyList(), null);
+        try
+        {
+            result.start();
+        }
+        catch ( Throwable e )
+        {
+            throw Exceptions.launderedException( e );
+        }
+        return result;
     }
 
     @Test

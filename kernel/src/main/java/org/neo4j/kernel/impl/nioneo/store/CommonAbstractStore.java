@@ -66,17 +66,16 @@ public abstract class CommonAbstractStore
 
     protected final String storageFileName;
     private final IdType idType;
-    protected StringLogger stringLogger;
-    private IdGenerator idGenerator = null;
-    private FileChannel fileChannel = null;
+    protected final StringLogger stringLogger;
+    private IdGenerator idGenerator;
+    private FileChannel fileChannel;
     private PersistenceWindowPool windowPool;
     private boolean storeOk = true;
     private Throwable causeOfStoreNotOk;
     private FileLock fileLock;
-    private boolean grabFileLock = true;
-
-    private boolean readOnly = false;
-    private boolean backupSlave = false;
+    private final boolean grabFileLock;
+    private final boolean readOnly;
+    private final boolean backupSlave;
     private long highestUpdateRecordId = -1;
 
     /**
@@ -105,7 +104,9 @@ public abstract class CommonAbstractStore
         this.idType = idType;
         this.stringLogger = stringLogger;
         grabFileLock = configuration.getBoolean( Configuration.grab_file_lock );
-
+        readOnly = configuration.getBoolean( Configuration.read_only );
+        backupSlave = configuration.getBoolean( Configuration.backup_slave );
+        
         checkStorage();
         checkVersion(); // Overriden in NeoStore
         loadStorage();
@@ -135,8 +136,6 @@ public abstract class CommonAbstractStore
 
     protected void checkStorage()
     {
-        readOnly = configuration.getBoolean( Configuration.read_only );
-        backupSlave = configuration.getBoolean( Configuration.backup_slave );
         if ( !fileSystemAbstraction.fileExists( storageFileName ) )
         {
             throw new IllegalStateException( "No such store[" + storageFileName
@@ -629,6 +628,7 @@ public abstract class CommonAbstractStore
             try
             {
                 fileChannel.close();
+                fileChannel = null;
             }
             catch ( IOException e )
             {

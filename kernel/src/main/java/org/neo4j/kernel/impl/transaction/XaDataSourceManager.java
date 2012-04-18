@@ -85,12 +85,16 @@ public class XaDataSourceManager
     public void start()
         throws Throwable
     {
+        for ( XaDataSource dataSource : dataSources.values() )
+            dataSource.start();
     }
 
     @Override
     public void stop()
         throws Throwable
     {
+        for ( XaDataSource dataSource : dataSources.values() )
+            dataSource.stop();
     }
 
     @Override
@@ -99,12 +103,8 @@ public class XaDataSourceManager
     {
         branchIdMapping.clear();
         sourceIdMapping.clear();
-        Iterator<XaDataSource> itr = dataSources.values().iterator();
-        while( itr.hasNext() )
-        {
-            XaDataSource dataSource = itr.next();
-            dataSource.close();
-        }
+        for ( XaDataSource dataSource : dataSources.values() )
+            dataSource.shutdown();
         dataSources.clear();
     }
 

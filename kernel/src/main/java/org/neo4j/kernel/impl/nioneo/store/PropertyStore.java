@@ -68,7 +68,6 @@ public class PropertyStore extends AbstractStore implements Store, RecordStore<P
         this.stringPropertyStore = stringPropertyStore;
         this.propertyIndexStore = propertyIndexStore;
         this.arrayPropertyStore = arrayPropertyStore;
-
     }
 
     @Override

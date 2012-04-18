@@ -147,4 +147,11 @@ public abstract class LogBackedXaDataSource extends XaDataSource
             getXaContainer().getLogicalLog().setKeepLogs( keepLogs.booleanValue() );
         }
     }
+    
+    @Override
+    public void stop() throws Throwable
+    {
+        super.stop();
+        logicalLog = null;
+    }
 }

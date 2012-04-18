@@ -1338,7 +1338,7 @@ public abstract class AbstractGraphDatabase
         public void start()
             throws Throwable
         {
-            // TODO: Starting database. Make sure none can access it through lock or CAS
+            // TODO: Started database. Release the API lock
             msgLog.logMessage( "Started - database is now available" );
         }
 
@@ -1346,7 +1346,7 @@ public abstract class AbstractGraphDatabase
         public void stop()
             throws Throwable
         {
-            // TODO: Starting database. Make sure none can access it through lock or CAS
+            // TODO: Stopping database. Make sure none can access it through lock or CAS
             msgLog.logMessage( "Stopping - database is now unavailable" );
         }
 
@@ -1354,7 +1354,6 @@ public abstract class AbstractGraphDatabase
         public void shutdown()
             throws Throwable
         {
-            // TODO: Starting database. Make sure none can access it through lock or CAS
         }
     }
 

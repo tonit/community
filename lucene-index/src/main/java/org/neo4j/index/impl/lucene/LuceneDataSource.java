@@ -19,6 +19,9 @@
  */
 package org.neo4j.index.impl.lucene;
 
+import static org.neo4j.index.impl.lucene.MultipleBackupDeletionPolicy.SNAPSHOT_ID;
+import static org.neo4j.kernel.impl.nioneo.store.NeoStore.versionStringToLong;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -32,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.KeywordAnalyzer;
 import org.apache.lucene.analysis.LowerCaseFilter;
@@ -85,9 +89,6 @@ import org.neo4j.kernel.impl.transaction.xaframework.XaFactory;
 import org.neo4j.kernel.impl.transaction.xaframework.XaLogicalLog;
 import org.neo4j.kernel.impl.transaction.xaframework.XaTransaction;
 import org.neo4j.kernel.impl.transaction.xaframework.XaTransactionFactory;
-
-import static org.neo4j.index.impl.lucene.MultipleBackupDeletionPolicy.*;
-import static org.neo4j.kernel.impl.nioneo.store.NeoStore.*;
 
 /**
  * An {@link XaDataSource} optimized for the {@link LuceneIndexImplementation}.
@@ -152,11 +153,11 @@ public class LuceneDataSource extends LogBackedXaDataSource
     private final IndexWriterLruCache indexWriters;
     private final IndexSearcherLruCache indexSearchers;
 
-    private final XaContainer xaContainer;
+    private XaContainer xaContainer;
     private final String baseStorePath;
     private ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     final IndexStore indexStore;
-    final IndexProviderStore providerStore;
+    IndexProviderStore providerStore;
     private final IndexTypeCache typeCache;
     private boolean closed;
     private final Cache caching;
@@ -165,6 +166,12 @@ public class LuceneDataSource extends LogBackedXaDataSource
     final Map<IndexIdentifier, LuceneIndex<? extends PropertyContainer>> indexes =
             new HashMap<IndexIdentifier, LuceneIndex<? extends PropertyContainer>>();
     private final DirectoryGetter directoryGetter;
+    private final XaFactory xaFactory;
+    private boolean isReadOnly;
+    private final Config config;
+    private LuceneCommandFactory cf;
+    private LuceneTransactionFactory tf;
+    private final FileSystemAbstraction fileSystemAbstraction;
 
     /**
      * Constructs this data source.
@@ -172,9 +179,12 @@ public class LuceneDataSource extends LogBackedXaDataSource
      * @throws InstantiationException if the data source couldn't be
      * instantiated
      */
-    public LuceneDataSource( Config config,  IndexStore indexStore, FileSystemAbstraction fileSystemAbstraction, XaFactory xaFactory)
+    public LuceneDataSource( Config config, IndexStore indexStore, FileSystemAbstraction fileSystemAbstraction, XaFactory xaFactory)
     {
         super( DEFAULT_BRANCH_ID, DEFAULT_NAME );
+        this.config = config;
+        this.fileSystemAbstraction = fileSystemAbstraction;
+        this.xaFactory = xaFactory;
         indexSearchers = new IndexSearcherLruCache( config.getInteger( Configuration.lucene_searcher_cache_size ));
         indexWriters = new IndexWriterLruCache( config.getInteger( Configuration.lucene_writer_cache_size ));
         caching = new Cache();
@@ -183,9 +193,8 @@ public class LuceneDataSource extends LogBackedXaDataSource
         cleanWriteLocks( baseStorePath );
         this.indexStore = indexStore;
         boolean allowUpgrade = config.getBoolean( Configuration.allow_store_upgrade );
-        this.providerStore = newIndexStore( storeDir, fileSystemAbstraction, allowUpgrade );
         this.typeCache = new IndexTypeCache( indexStore );
-        boolean isReadOnly = config.getBoolean( Configuration.read_only );
+        isReadOnly = config.getBoolean( Configuration.read_only );
         this.directoryGetter = config.getBoolean( Configuration.ephemeral ) ? DirectoryGetter.MEMORY : DirectoryGetter.FS;
 
         nodeEntityType = new EntityType()
@@ -219,8 +228,15 @@ public class LuceneDataSource extends LogBackedXaDataSource
             }
         };
 
-        XaCommandFactory cf = new LuceneCommandFactory();
-        XaTransactionFactory tf = new LuceneTransactionFactory();
+        cf = new LuceneCommandFactory();
+        tf = new LuceneTransactionFactory();
+    }
+    
+    @Override
+    public void start() throws Throwable
+    {
+        providerStore = newIndexStore( config.get( Configuration.store_dir ), fileSystemAbstraction,
+                config.getBoolean( Configuration.allow_store_upgrade ) );
         xaContainer = xaFactory.newXaContainer(this, this.baseStorePath + File.separator + "lucene.log", cf, tf, null, null );
 
         if ( !isReadOnly )
@@ -238,6 +254,7 @@ public class LuceneDataSource extends LogBackedXaDataSource
             setKeepLogicalLogsIfSpecified( config.getBoolean( new GraphDatabaseSetting.BooleanSetting( "online_backup_enabled") ) ? "true" : config.get( Configuration.keep_logical_logs ), DEFAULT_NAME );
             setLogicalLogAtCreationTime( xaContainer.getLogicalLog() );
         }
+        closed = false;
     }
 
     IndexType getType( IndexIdentifier identifier )
@@ -287,7 +304,7 @@ public class LuceneDataSource extends LogBackedXaDataSource
         File file = new File( getStoreDir( dbStoreDir ).first() + File.separator + "lucene-store.db" );
         return new IndexProviderStore( file, fileSystem, INDEX_VERSION, allowUpgrade );
     }
-
+    
     @Override
     public void close()
     {

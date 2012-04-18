@@ -42,6 +42,7 @@ import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
+import org.neo4j.helpers.Exceptions;
 import org.neo4j.helpers.Pair;
 import org.neo4j.helpers.collection.CombiningIterable;
 import org.neo4j.helpers.collection.MapUtil;
@@ -163,7 +164,15 @@ public class TestNeoStore extends AbstractNeo4jTestCase
         ds = new NeoStoreXaDataSource(config, sf, fileSystem, lockManager, lockReleaser, StringLogger.DEV_NULL,
                 new XaFactory(config, TxIdGenerator.DEFAULT, new PlaceboTm(),
                         new DefaultLogBufferFactory(), fileSystem, StringLogger.DEV_NULL, RecoveryVerifier.ALWAYS_VALID ), Collections.<Pair<TransactionInterceptorProvider,Object>>emptyList(), null );
-
+        try
+        {
+            ds.start();
+        }
+        catch ( Throwable e )
+        {
+            throw Exceptions.launderedException( e );
+        }
+        
         xaCon = ds.getXaConnection();
         pStore = xaCon.getPropertyStore();
         rtStore = xaCon.getRelationshipTypeStore();
