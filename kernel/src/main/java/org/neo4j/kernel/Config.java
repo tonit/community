@@ -212,7 +212,7 @@ public class Config implements DiagnosticsProvider
 
     private final AutoConfigurator autoConfigurator;
 
-    Config( FileSystemAbstraction fileSystem, String storeDir, Map<String, String> inputParams)
+    public Config( FileSystemAbstraction fileSystem, String storeDir, Map<String, String> inputParams )
     {
         // Get the default params and override with the user supplied values
         this.params = getDefaultParams();
