@@ -565,7 +565,8 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
             {
                 command.execute();
                 removeRelationshipFromCache( command.getKey() );
-                if ( true /* doesn't work: command.isRemove(), the log doesn't contain the nodes */)
+                // if any of them are -1 both should be so we get an exception if that does not hold true
+                if ( command.getFirstNode() != -1 || command.getSecondNode() != -1 ) 
                 {
                     removeNodeFromCache( command.getFirstNode() );
                     removeNodeFromCache( command.getSecondNode() );
@@ -605,18 +606,17 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
         nodeRecords.clear();
         propertyRecords.clear();
         relRecords.clear();
-        if ( relTypeRecords != null ) relTypeRecords.clear();
-        if ( propIndexRecords != null ) propIndexRecords.clear();
+        relTypeRecords = null;
+        propIndexRecords = null;
         neoStoreRecord = null;
 
         nodeCommands.clear();
         propCommands.clear();
-        if ( propIndexCommands != null ) propIndexCommands.clear();
+        propIndexCommands = null;
         relCommands.clear();
-        if ( relTypeCommands != null ) relTypeCommands.clear();
+        relTypeCommands = null;
         neoStoreCommand = null;
     }
-
 
     private void removePropertyFromCache( PropertyCommand command )
     {
@@ -1593,7 +1593,7 @@ public class WriteTransaction extends XaTransaction implements NeoStoreTransacti
 
     PropertyIndexRecord getPropertyIndexRecord( int id )
     {
-        return propIndexRecords.get( id );
+        return propIndexRecords != null ? propIndexRecords.get( id ) : null;
     }
 
     private static class LockableRelationship implements Relationship

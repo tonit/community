@@ -20,6 +20,7 @@
 package org.neo4j.cypher.internal.symbols
 
 import org.neo4j.cypher.{CypherTypeException, SyntaxException}
+import org.neo4j.cypher.internal.commands.Expression
 
 
 class SymbolTable(val identifiers: Identifier*) {
@@ -31,8 +32,10 @@ class SymbolTable(val identifiers: Identifier*) {
   } catch {
     case _ => false
   }
-  
-  def missingDependencies(needs:Seq[Identifier]):Seq[Identifier] = needs.filter( id=> !satisfies(Seq(id))  )
+
+  def missingDependencies(needs: Seq[Identifier]): Seq[Identifier] = needs.filter(id => !satisfies(Seq(id)))
+
+  def missingExpressions(needs: Seq[Expression]): Seq[Expression] = needs.filter(id => !satisfies(Seq(id.identifier)))
 
   def assertHas(name: String, typ: AnyType) {
     assertHas(Identifier(name, typ))
@@ -50,6 +53,8 @@ class SymbolTable(val identifiers: Identifier*) {
   }
 
   def assertThat(id: Identifier): AnyType = actualIdentifier(id).typ
+
+  def remove(id: Identifier) = new SymbolTable(identifiers.filterNot(_ == id):_*)
 
   def keys = identifiers.map(_.name)
 
@@ -105,5 +110,11 @@ class SymbolTable(val identifiers: Identifier*) {
     if (names.size != identifiers.size) {
       names.foreach(n => if (identifiers.filter(_.name == n).size > 1) throw new SyntaxException("Identifier " + n + " defined multiple times"))
     }
+  }
+
+  override def equals(p1: Any): Boolean = p1 match {
+    case null => false
+    case x: SymbolTable => this.identifiers == x.identifiers
+    case _ => false
   }
 }

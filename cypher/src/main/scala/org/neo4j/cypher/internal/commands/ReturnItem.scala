@@ -20,34 +20,37 @@
 package org.neo4j.cypher.internal.commands
 
 import org.neo4j.cypher.internal.pipes.Dependant
-import org.neo4j.cypher.internal.symbols.{AnyType, Identifier}
-import org.neo4j.cypher.internal.pipes.aggregation.AggregationFunction
+import org.neo4j.cypher.internal.symbols._
 
-case class ReturnItem(expression: Expression, name: String) extends (Map[String, Any] => Any) with Dependant {
-  def apply(m: Map[String, Any]): Any =
-    m.get(expression.identifier.name) match {
-      case None => expression(m)
-      case Some(x) => x
-    }
+abstract class ReturnColumn extends Dependant {
+  def expressions(symbols: SymbolTable): Seq[Expression]
 
-  def dependencies = expression.dependencies(AnyType())
+  def name: String
+}
 
-  def identifier = Identifier(name, expression.identifier.typ)
+case class AllIdentifiers() extends ReturnColumn {
+  def expressions(symbols: SymbolTable) = symbols.identifiers.flatMap {
+    case Identifier(name, _) if name.startsWith("  UNNAMED") => None
+    case Identifier(name, typ) if MapType().isAssignableFrom(typ) => Some(Entity(name))
+    case Identifier(name, typ) if PathType().isAssignableFrom(typ) => Some(Entity(name))
+    case _ => None
+  }
 
-  def columnName = identifier.name
+  def name = "*"
 
-  def concreteReturnItem = this
+  def dependencies = Seq()
+}
+
+case class ReturnItem(expression: Expression, name: String, renamed: Boolean = false) extends ReturnColumn {
+  def expressions(symbols: SymbolTable) = Seq(expression)
+
+  val dependencies = expression.dependencies(AnyType())
+
+  val identifier = Identifier(name, expression.identifier.typ)
+
+  val columnName = identifier.name
 
   override def toString() = identifier.name
 
-  def rename(newName: String) = ReturnItem(expression, newName)
-
-  def equalsWithoutName(other: ReturnItem): Boolean = this.expression == other.expression
-
-  def createAggregationFunction: AggregationFunction = {
-    val aggregation = expression.filter(_.isInstanceOf[AggregationExpression]).head
-    aggregation.asInstanceOf[AggregationExpression].createAggregationFunction
-  }
-
-  def expressionName: String = expression.identifier.name
+  def rename(newName: String) = ReturnItem(expression, newName, true)
 }

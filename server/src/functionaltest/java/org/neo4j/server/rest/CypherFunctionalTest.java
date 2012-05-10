@@ -19,6 +19,17 @@
  */
 package org.neo4j.server.rest;
 
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.matchers.JUnitMatchers.containsString;
+
+import java.io.UnsupportedEncodingException;
+import java.util.Map;
+
+import javax.ws.rs.core.Response.Status;
+
 import org.junit.Ignore;
 import org.junit.Test;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -33,16 +44,6 @@ import org.neo4j.test.GraphDescription.NODE;
 import org.neo4j.test.GraphDescription.PROP;
 import org.neo4j.test.GraphDescription.REL;
 import org.neo4j.test.TestData.Title;
-
-import javax.ws.rs.core.Response.Status;
-import java.io.UnsupportedEncodingException;
-import java.util.Map;
-
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.matchers.JUnitMatchers.containsString;
 
 public class CypherFunctionalTest extends AbstractRestFunctionalTestBase {
 
@@ -143,8 +144,13 @@ public class CypherFunctionalTest extends AbstractRestFunctionalTestBase {
         assertThat( response, containsString( "World" ) );
     }
     
+    /**
+     * Sending a query with syntax errors will give a bad request (HTTP 400)
+     * response together with an error message.
+     */
     @Test
     @Documented
+    @Title( "Send queries with syntax errors" )
     @Graph( value = { "I know you" }, autoIndexNodes = true )
     public void send_queries_with_syntax_errors() throws Exception {
         data.get();
@@ -172,8 +178,8 @@ public class CypherFunctionalTest extends AbstractRestFunctionalTestBase {
         String response = cypherRestCall(script, Status.OK);
 
         Map<String, Object> resultMap = JsonHelper.jsonToMap( response );
-        assertEquals(2, resultMap.size());
-        assertThat(response, containsString("\"I\", \"you\""));
+        assertEquals( 2, resultMap.size() );
+        assertThat( response, containsString( "\"I\", \"you\"" ) );
     }
 
     @Test
@@ -185,8 +191,8 @@ public class CypherFunctionalTest extends AbstractRestFunctionalTestBase {
         String script = "start n = node(%I%) return n.array1, n.array2";
         String response = cypherRestCall( script, Status.OK );
 
-        assertThat(response, containsString("[ 1, 2, 3 ]"));
-        assertThat(response, containsString("[ \"a\", \"b\", \"c\" ]"));
+        assertThat( response, containsString( "[ 1, 2, 3 ]" ) );
+        assertThat( response, containsString( "[ \"a\", \"b\", \"c\" ]" ) );
     }
 
     void setProperty(String nodeName, String propertyName, Object propertyValue) {
@@ -199,8 +205,13 @@ public class CypherFunctionalTest extends AbstractRestFunctionalTestBase {
         tx.finish();
     }
 
+    /**
+     * This example shows what happens if you misspell
+     * an identifier.
+     */
     @Test
     @Documented
+    @Title("Send queries with errors")
     @Ignore
     @Graph( value = { "I know you" }, autoIndexNodes = true )
     public void send_queries_with_errors() throws Exception {

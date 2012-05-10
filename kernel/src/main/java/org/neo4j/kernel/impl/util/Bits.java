@@ -62,22 +62,29 @@ public class Bits
     
     public static Bits bits( int numberOfBytes )
     {
-        int requiredLongs = (numberOfBytes-1)/8+1;
+        int requiredLongs = requiredLongs(numberOfBytes);
         return new Bits( new long[requiredLongs], numberOfBytes );
     }
-    
+
+    public static int requiredLongs(int numberOfBytes) {
+        return ((numberOfBytes-1)>>3)+1; // /8
+    }
+
     public static Bits bitsFromLongs( long[] longs )
     {
-        return new Bits( longs, longs.length*8 );
+        return new Bits( longs, longs.length<<3 ); // *8
     }
     
     public static Bits bitsFromBytes( byte[] bytes )
     {
-        Bits bits = bits( bytes.length );
-        for ( byte value : bytes )
-        {
-            bits.put( value );
-        }
+        return bitsFromBytes( bytes, 0 );
+    }
+    
+    public static Bits bitsFromBytes( byte[] bytes, int startIndex )
+    {
+        final int count = bytes.length;
+        Bits bits = bits( count - startIndex );
+        for ( int i = startIndex; i < count; i++ ) bits.put( bytes[i] );
         return bits;
     }
     
@@ -132,7 +139,8 @@ public class Bits
         try
         {
             byte[] result = new byte[numberOfBytes];
-            for ( int i = 0; i < result.length; i++ )
+            final int count = result.length;
+            for ( int i = 0; i < count; i++ )
             {
                 result[i] = getByte();
             }

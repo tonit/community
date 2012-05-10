@@ -19,87 +19,14 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import javax.transaction.HeuristicMixedException;
-import javax.transaction.HeuristicRollbackException;
-import javax.transaction.NotSupportedException;
-import javax.transaction.RollbackException;
-import javax.transaction.SystemException;
-import javax.transaction.TransactionManager;
 import javax.transaction.UserTransaction;
 
-public class UserTransactionImpl implements UserTransaction
+import org.neo4j.kernel.GraphDatabaseAPI;
+
+public class UserTransactionImpl extends BaseSpringTransactionImpl implements UserTransaction
 {
-    private TransactionManager tm;
-    
-    public UserTransactionImpl()
+    public UserTransactionImpl( GraphDatabaseAPI neo4j)
     {
-    }
-    
-    public UserTransactionImpl( TransactionManager tm)
-    {
-        this.tm = tm;
-    }
-    
-    public void begin() throws NotSupportedException, SystemException
-    {
-        tm.begin();
-    }
-
-    public void commit() throws RollbackException, HeuristicMixedException,
-        HeuristicRollbackException, SecurityException, IllegalStateException,
-        SystemException
-    {
-        tm.commit();
-    }
-
-    public void rollback() throws SecurityException, IllegalStateException,
-        SystemException
-    {
-        tm.rollback();
-    }
-
-    public void setRollbackOnly() throws IllegalStateException, SystemException
-    {
-        tm.setRollbackOnly();
-    }
-
-    public int getStatus() throws SystemException
-    {
-        return tm.getStatus();
-    }
-
-    public void setTransactionTimeout( int seconds ) throws SystemException
-    {
-        tm.setTransactionTimeout( seconds );
-    }
-
-    /**
-     * Returns the event identifier for the current transaction. If no
-     * transaction is active <CODE>null</CODE> is returned.
-     */
-    public Integer getEventIdentifier()
-    {
-        try
-        {
-            TransactionImpl tx = (TransactionImpl) tm.getTransaction();
-            if ( tx != null )
-            {
-                return tx.getEventIdentifier();
-            }
-        }
-        catch ( SystemException e )
-        {
-        }
-        return null;
-    }
-
-    public void setTransactionManager( TransactionManager tm )
-    {
-        this.tm = tm;
-    }
-
-    public TransactionManager getTransactionManager()
-    {
-        return tm;
+        super( neo4j );
     }
 }

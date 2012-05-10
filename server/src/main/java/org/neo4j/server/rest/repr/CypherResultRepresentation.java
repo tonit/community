@@ -19,49 +19,60 @@
  */
 package org.neo4j.server.rest.repr;
 
-import org.neo4j.cypher.javacompat.ExecutionResult;
-import org.neo4j.graphdb.Node;
-import org.neo4j.graphdb.Path;
-import org.neo4j.graphdb.Relationship;
-import org.neo4j.server.webadmin.rest.representations.JmxAttributeRepresentationDispatcher;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.neo4j.cypher.javacompat.ExecutionResult;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Path;
+import org.neo4j.graphdb.Relationship;
+import org.neo4j.helpers.collection.IterableWrapper;
+import org.neo4j.server.webadmin.rest.representations.JmxAttributeRepresentationDispatcher;
+
 public class CypherResultRepresentation extends ObjectRepresentation
 {
-    private final ExecutionResult queryResult;
+    private final Representation resultRepresentation;
+    private final ListRepresentation columns;
+
 
     public CypherResultRepresentation( ExecutionResult result )
     {
         super( RepresentationType.STRING );
-        this.queryResult = result;
+        resultRepresentation = createResultRepresentation(result);
+        columns = ListRepresentation.string( result.columns() );
     }
 
     @Mapping( "columns" )
     public Representation columns()
     {
-        return ListRepresentation.string( queryResult.columns() );
+        return columns;
     }
 
     @Mapping( "data" )
     public Representation data()
     {
-        // rows
-        List<Representation> rows = new ArrayList<Representation>();
-        for ( Map<String, Object> row : queryResult )
-        {
-            List<Representation> fields = new ArrayList<Representation>();
-            // columns
-            for ( String column : queryResult.columns() )
-            {
-                Representation rowRep = getRepresentation( row.get( column ) );
-                fields.add( rowRep );
+        return resultRepresentation;
+
+    }
+
+    private Representation createResultRepresentation(ExecutionResult executionResult) {
+        final List<String> columns = executionResult.columns();
+        final Iterable<Map<String, Object>> inner = new RepresentationExceptionHandlingIterable<Map<String,Object>>(executionResult);
+        return new ListRepresentation( "data", new IterableWrapper<Representation,Map<String,Object>>(inner) {
+
+            @Override
+            protected Representation underlyingObjectToObject(final Map<String, Object> row) {
+                return new ListRepresentation("row",
+                 new IterableWrapper<Representation,String>(columns) {
+
+                     @Override
+                     protected Representation underlyingObjectToObject(String column) {
+                         return getRepresentation( row.get( column ) );
+                     }
+                 });
             }
-            rows.add( new ListRepresentation( "row", fields ) );
-        }
-        return new ListRepresentation( "data", rows );
+        });
     }
 
     Representation getRepresentation( Object r )
@@ -113,4 +124,5 @@ public class CypherResultRepresentation extends ObjectRepresentation
             return RepresentationType.STRING;
         return representations.get( 0 ).getRepresentationType();
     }
+
 }

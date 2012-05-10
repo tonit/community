@@ -19,25 +19,17 @@
  */
 package org.neo4j.cypher.internal.commands
 
-import org.neo4j.cypher.internal.symbols.{AnyType, Identifier, NumberType}
 import java.lang.Math
 import org.neo4j.cypher.CypherTypeException
+import collection.Map
+import org.neo4j.cypher.internal.symbols._
 
-abstract class MathFunction(arg: Expression) extends Expression {
-  protected def asDouble(a: Any) = try {
-    a.asInstanceOf[Number].doubleValue()
-  }
-  catch {
-    case x: ClassCastException => throw new CypherTypeException("Expected a numeric value for " + toString() + ", but got: " + a.toString)
-  }
-
-  protected def asInt(a: Any) = asDouble(a).round
-
+abstract class MathFunction(arg: Expression) extends Expression with NumericHelper {
   def innerExpectedType = NumberType()
 
-  def identifier = Identifier(toString(), NumberType())
+  val identifier = Identifier(toString(), NumberType())
 
-  def declareDependencies(extectedType: AnyType): Seq[Identifier] = arg.dependencies(AnyType())
+  def declareDependencies(extectedType: AnyType): Seq[Identifier] = arg.dependencies(ScalarType())
 
   protected def name: String
 
@@ -45,22 +37,61 @@ abstract class MathFunction(arg: Expression) extends Expression {
 
   override def toString() = name + "(" + argumentsString + ")"
 
-  def filter(f: (Expression) => Boolean) = if(f(this))
+  def filter(f: (Expression) => Boolean) = if (f(this))
     Seq(this) ++ arg.filter(f)
   else
     arg.filter(f)
 }
 
+trait NumericHelper {
+  protected def asDouble(a: Any) = asNumber(a).doubleValue()
+  protected def asInt(a: Any) = asNumber(a).intValue()
+
+  private def asNumber(a: Any): Number = try {
+    a.asInstanceOf[Number]
+  }
+  catch {
+    case x: ClassCastException => throw new CypherTypeException("Expected a numeric value for " + toString() + ", but got: " + a.toString)
+  }
+}
+
 case class AbsFunction(argument: Expression) extends MathFunction(argument) {
-  def apply(m: Map[String, Any]): Any = Math.abs(asDouble(argument(m)))
+  def compute(m: Map[String, Any]): Any = Math.abs(asDouble(argument(m)))
 
   protected def name = "abs"
 
   def rewrite(f: (Expression) => Expression) = f(AbsFunction(argument.rewrite(f)))
 }
 
+case class RangeFunction(start: Expression, end: Expression, step: Expression) extends Expression with NumericHelper {
+  def compute(m: Map[String, Any]): Any = {
+    val startVal = asInt(start(m))
+    val endVal = asInt(end(m))
+    val stepVal = asInt(step(m))
+    new Range(startVal, endVal + 1, stepVal).toList
+  }
+
+  def declareDependencies(extectedType: AnyType) = start.declareDependencies(NumberType()) ++
+    end.declareDependencies(NumberType()) ++
+    step.declareDependencies(NumberType())
+
+  def filter(f: (Expression) => Boolean) = {
+    val inner = start.filter(f) ++ end.filter(f) ++ step.filter(f)
+    if (f(this)) {
+      Seq(this) ++ inner
+    }
+    else {
+      inner
+    }
+  }
+
+  val identifier = Identifier("range("+ start + "," + end + "," + step + ")", new IterableType(NumberType()))
+
+  def rewrite(f: (Expression) => Expression) = f(RangeFunction(start.rewrite(f), end.rewrite(f), step.rewrite(f)))
+}
+
 case class SignFunction(argument: Expression) extends MathFunction(argument) {
-  def apply(m: Map[String, Any]): Any = Math.signum(asDouble(argument(m)))
+  def compute(m: Map[String, Any]): Any = Math.signum(asDouble(argument(m)))
 
   protected def name = "sign"
 
@@ -68,7 +99,7 @@ case class SignFunction(argument: Expression) extends MathFunction(argument) {
 }
 
 case class RoundFunction(expression: Expression) extends MathFunction(expression) {
-  def apply(m: Map[String, Any]): Any = math.round(asDouble(expression(m)))
+  def compute(m: Map[String, Any]): Any = math.round(asDouble(expression(m)))
 
   protected def name = "round"
 
@@ -76,7 +107,7 @@ case class RoundFunction(expression: Expression) extends MathFunction(expression
 }
 
 case class SqrtFunction(argument: Expression) extends MathFunction(argument) {
-  def apply(m: Map[String, Any]): Any = Math.sqrt(asDouble(argument(m))).toInt
+  def compute(m: Map[String, Any]): Any = Math.sqrt(asDouble(argument(m))).toInt
 
   protected def name = "sqrt"
 

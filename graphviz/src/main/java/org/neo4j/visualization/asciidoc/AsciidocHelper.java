@@ -22,7 +22,6 @@ package org.neo4j.visualization.asciidoc;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-
 import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.visualization.graphviz.AsciiDocSimpleStyle;
@@ -122,8 +121,9 @@ public class AsciidocHelper
 
     public static String createCypherSnippet( final String query )
     {
-        String[] keywordsToBreakOn = new String[] {"start", "match", "where", "return", "skip", "limit", "order by",
-                "asc", "ascending", "desc", "descending"};
+        String[] keywordsToBreakOn = new String[] {"start", "create", "set", "delete", "foreach",
+		"match", "where", "with", "return", "skip", "limit", "order by", "asc", "ascending",
+		"desc", "descending"};
 
         String result = "[source,cypher]\n----\n" + query + "\n----\n";
 

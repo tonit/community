@@ -17,11 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package org.neo4j.kernel.impl.nioneo.store;
 
+import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,8 +36,13 @@ import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.PropertyContainer;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.Transaction;
+import org.neo4j.graphdb.factory.GraphDatabaseSetting;
+import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.kernel.AbstractGraphDatabase;
+import org.neo4j.kernel.DefaultIdGeneratorFactory;
 import org.neo4j.kernel.IdGeneratorFactory;
+import org.neo4j.kernel.configuration.Config;
+import org.neo4j.kernel.configuration.ConfigurationDefaults;
 import org.neo4j.kernel.impl.util.StringLogger;
 import org.neo4j.test.ImpermanentGraphDatabase;
 import org.neo4j.test.impl.EphemeralFileSystemAbstraction;
@@ -49,13 +55,11 @@ import org.neo4j.test.subprocess.ForeignBreakpoints;
 import org.neo4j.test.subprocess.SubProcessTestRunner;
 import org.neo4j.tooling.GlobalGraphOperations;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.neo4j.kernel.CommonFactories.defaultIdGeneratorFactory;
+import static org.junit.Assert.*;
 
 @RunWith( Suite.class )
 @SuiteClasses( { IdGeneratorRebuildFailureEmulationTest.FailureBeforeRebuild.class,
-                IdGeneratorRebuildFailureEmulationTest.FailureDuringRebuild.class } )
+                 IdGeneratorRebuildFailureEmulationTest.FailureDuringRebuild.class } )
 public class IdGeneratorRebuildFailureEmulationTest
 {
     @RunWith( JUnit4.class )
@@ -106,13 +110,13 @@ public class IdGeneratorRebuildFailureEmulationTest
     @BreakpointTrigger
     private void performTest() throws Exception
     {
-        String file = prefix + "/" + Thread.currentThread().getStackTrace()[2].getMethodName().replace( '_', '.' );
+        String file = prefix + File.separator + Thread.currentThread().getStackTrace()[2].getMethodName().replace( '_', '.' );
         // emulate the need for rebuilding id generators by deleting it
         fs.deleteFile( file + ".id" );
         NeoStore neostore = null;
         try
         {
-            neostore = factory.newNeoStore( prefix + "/neostore" );
+            neostore = factory.newNeoStore( prefix + File.separator + "neostore" );
             // emulate a failure during rebuild:
             emulateFailureOnRebuildOf( neostore );
         }
@@ -146,14 +150,13 @@ public class IdGeneratorRebuildFailureEmulationTest
         createInitialData( graphdb );
         graphdb.shutdown();
         Map<String, String> config = new HashMap<String, String>();
-        config.put( "rebuild_idgenerators_fast", "false" );
-        factory = new StoreFactory( config, defaultIdGeneratorFactory(), fs, null, StringLogger.SYSTEM, null );
+        config.put( GraphDatabaseSettings.rebuild_idgenerators_fast.name(), GraphDatabaseSetting.FALSE );
+        factory = new StoreFactory( new Config( new ConfigurationDefaults(GraphDatabaseSettings.class ).apply( config )), new DefaultIdGeneratorFactory(), fs, null, StringLogger.SYSTEM, null );
     }
 
     @After
-    public void verifyAndDispose()
+    public void verifyAndDispose() throws Exception
     {
-        //System.out.println(fs.releaseAllLocks());
         try
         {
             AbstractGraphDatabase graphdb = new Database();
@@ -162,7 +165,7 @@ public class IdGeneratorRebuildFailureEmulationTest
         }
         finally
         {
-            if ( fs != null ) fs.dispose();
+            if ( fs != null ) fs.disposeAndAssertNoOpenFiles();
             fs = null;
         }
     }
@@ -230,8 +233,11 @@ public class IdGeneratorRebuildFailureEmulationTest
 
     private static class FileSystem extends EphemeralFileSystemAbstraction
     {
-        void dispose()
+        void disposeAndAssertNoOpenFiles() throws Exception
         {
+            //Collection<String> open = openFiles();
+            //assertTrue( "Open files: " + open, open.isEmpty() );
+            assertNoOpenFiles();
             super.shutdown();
         }
 
@@ -253,7 +259,7 @@ public class IdGeneratorRebuildFailureEmulationTest
         @Override
         protected IdGeneratorFactory createIdGeneratorFactory()
         {
-            return defaultIdGeneratorFactory();
+            return new DefaultIdGeneratorFactory();
         }
     }
 

@@ -19,91 +19,14 @@
  */
 package org.neo4j.kernel.impl.transaction;
 
-import javax.transaction.HeuristicMixedException;
-import javax.transaction.HeuristicRollbackException;
-import javax.transaction.InvalidTransactionException;
-import javax.transaction.NotSupportedException;
-import javax.transaction.RollbackException;
-import javax.transaction.SystemException;
-import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 
-import org.neo4j.graphdb.GraphDatabaseService;
-import org.neo4j.kernel.EmbeddedGraphDatabase;
+import org.neo4j.kernel.GraphDatabaseAPI;
 
-public class SpringTransactionManager implements TransactionManager
+public class SpringTransactionManager extends BaseSpringTransactionImpl implements TransactionManager
 {
-    private TransactionManager tm;
-
-    /**
-     * Using this constructor requires setting the the transaction manager via
-     * {@link #setTransactionManager(TransactionManager)} method.
-     */
-    public SpringTransactionManager()
-    { 
-    }
-    
-    public SpringTransactionManager( GraphDatabaseService neo4j )
+    public SpringTransactionManager( GraphDatabaseAPI neo4j)
     {
-        this.tm = ((EmbeddedGraphDatabase) neo4j).getTxManager();
-    }
-    
-    public void begin() throws NotSupportedException, SystemException
-    {
-        tm.begin();
-    }
-
-    public void commit() throws RollbackException, HeuristicMixedException,
-        HeuristicRollbackException, SecurityException, IllegalStateException,
-        SystemException
-    {
-        tm.commit();
-    }
-
-    public int getStatus() throws SystemException
-    {
-        return tm.getStatus();
-    }
-
-    public Transaction getTransaction() throws SystemException
-    {
-        return tm.getTransaction();
-    }
-
-    public void resume( Transaction tx ) throws InvalidTransactionException,
-        IllegalStateException, SystemException
-    {
-        tm.resume( tx );
-    }
-
-    public void rollback() throws IllegalStateException, SecurityException,
-        SystemException
-    {
-        tm.rollback();
-    }
-
-    public void setRollbackOnly() throws IllegalStateException, SystemException
-    {
-        tm.setRollbackOnly();
-    }
-
-    public void setTransactionTimeout( int sec ) throws SystemException
-    {
-        tm.setTransactionTimeout( sec );
-    }
-
-    public Transaction suspend() throws SystemException
-    {
-        return tm.suspend();
-    }
-
-    public void setTransactionManager( TransactionManager tm )
-    {
-        this.tm = tm;
-    }
-
-    public TransactionManager getTransactionManager()
-    {
-        return tm;
+        super( neo4j );
     }
 }

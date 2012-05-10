@@ -28,7 +28,7 @@ class ReturnTest extends DocumentingTestBase {
 
   def section = "Return"
 
-  override val properties = Map("A" -> Map("<<!!__??>>" -> "Yes!", "age" -> 55))
+  override val properties = Map("A" -> Map("happy" -> "Yes!", "age" -> 55))
 
   @Test def returnNode() {
     testQuery(
@@ -64,9 +64,9 @@ class ReturnTest extends DocumentingTestBase {
       text = """To introduce a placeholder that is made up of characters that are
       outside of the english alphabet, you can use the +`+ to enclose the identifier, like this:""",
       queryText = """start `This isn't a common identifier`=node(%A%)
-return `This isn't a common identifier`.`<<!!__??>>`""",
+return `This isn't a common identifier`.happy""",
       returns = """The node indexed with name "A" is returned""",
-      assertions = (p) => assertEquals(List(Map("This isn't a common identifier.<<!!__??>>" -> "Yes!")), p.toList))
+      assertions = (p) => assertEquals(List(Map("This isn't a common identifier.happy" -> "Yes!")), p.toList))
   }
 
   @Test def nullable_properties() {
@@ -95,5 +95,14 @@ like this:""",
       queryText = """start a=node(%A%) return a.age AS SomethingTotallyDifferent""",
       returns = """Returns the age property of a node, but renames the column.""",
       assertions = (p) => assertEquals(List(55), p.columnAs[Node]("SomethingTotallyDifferent").toList))
+  }
+
+  @Test def return_all_identifiers() {
+    testQuery(
+      title = "Return all elements",
+      text = """When you want to return all nodes, relationships and paths found in a query, you can use the `*` symbol.""",
+      queryText = """start a=node(%A%) match p=a-[r]->b return *""",
+      returns = """Returns the two nodes, the relationship and the path used in the query""",
+      assertions = (p) => assertEquals(p.toList.head.keys, Set("a", "b", "r", "p")))
   }
 }
