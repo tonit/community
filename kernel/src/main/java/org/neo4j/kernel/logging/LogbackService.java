@@ -60,42 +60,46 @@ public class LogbackService
     {
         final String storeDir = config.get( AbstractGraphDatabase.Configuration.store_dir );
 
-        File file = new File( storeDir ).getAbsoluteFile();
-        if (!file.exists())
-            file.mkdirs();
-
-        loggerContext = (LoggerContext) StaticLoggerBinder.getSingleton().getLoggerFactory();
-
-        // Neo4j specific log config
-        loggingLife.add( new LifecycleAdapter()
+        if (storeDir == null)
         {
-            @Override
-            public void start()
-                throws Throwable
-            {
-                JoranConfigurator configurator = new JoranConfigurator();
-                configurator.setContext( loggerContext );
-                loggerContext.putProperty( "neo_store", storeDir );
-                loggerContext.putProperty( "remote_logging_enabled", config.get( GraphDatabaseSettings.remote_logging_enabled ) );
-                loggerContext.putProperty( "remote_logging_host", config.get( GraphDatabaseSettings.remote_logging_host ) );
-                loggerContext.putProperty( "remote_logging_port", config.get( GraphDatabaseSettings.remote_logging_port ) );
-                try
-                {
-                    configurator.doConfigure( getClass().getResource( "/neo4j-logback.xml" ) );
-                }
-                catch( JoranException e )
-                {
-                    throw new IllegalStateException("Failed to configure logging", e );
-                }
-            }
+            File file = new File( storeDir ).getAbsoluteFile();
+            if (!file.exists())
+                file.mkdirs();
 
-            @Override
-            public void stop()
-                throws Throwable
+            loggerContext = (LoggerContext) StaticLoggerBinder.getSingleton().getLoggerFactory();
+
+            // Neo4j specific log config
+            loggingLife.add( new LifecycleAdapter()
             {
-                loggerContext.getLogger( Loggers.NEO4J ).detachAndStopAllAppenders();
-            }
-        });
+                @Override
+                public void start()
+                    throws Throwable
+                {
+                    JoranConfigurator configurator = new JoranConfigurator();
+                    configurator.setContext( loggerContext );
+                    loggerContext.putProperty( "neo_store", storeDir );
+                    loggerContext.putProperty( "remote_logging_enabled", config.get( GraphDatabaseSettings.remote_logging_enabled ) );
+                    loggerContext.putProperty( "remote_logging_host", config.get( GraphDatabaseSettings.remote_logging_host ) );
+                    loggerContext.putProperty( "remote_logging_port", config.get( GraphDatabaseSettings.remote_logging_port ) );
+                    try
+                    {
+                        configurator.doConfigure( getClass().getResource( "/neo4j-logback.xml" ) );
+                    }
+                    catch( JoranException e )
+                    {
+                        throw new IllegalStateException("Failed to configure logging", e );
+                    }
+                }
+
+                @Override
+                public void stop()
+                    throws Throwable
+                {
+                    loggerContext.getLogger( Loggers.NEO4J ).detachAndStopAllAppenders();
+                }
+            });
+        }
+
         loggingLife.start();
 
         restartOnChange = new RestartOnChange( "remote_logging_", loggingLife );

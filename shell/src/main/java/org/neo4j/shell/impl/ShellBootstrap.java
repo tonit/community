@@ -43,7 +43,7 @@ public class ShellBootstrap implements Serializable
     ShellBootstrap( KernelData kernel )
     {
         this.enable = kernel.getConfig().getBoolean( ShellSettings.remote_shell_enabled );
-        this.port = kernel.getConfig().getInteger( ShellSettings.remote_shell_port );
+        this.port = ShellSettings.remote_shell_port.getPort( kernel.getConfigParams() );
         this.name = kernel.getConfig().get( ShellSettings.remote_shell_name );
         this.read_only = kernel.getConfig().getBoolean( ShellSettings.remote_shell_read_only );
     }

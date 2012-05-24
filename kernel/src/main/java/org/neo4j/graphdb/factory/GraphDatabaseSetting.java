@@ -20,9 +20,11 @@
 
 package org.neo4j.graphdb.factory;
 
+import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.Locale;
+import java.util.Map;
 import java.util.ResourceBundle;
 import java.util.regex.Pattern;
 
@@ -79,6 +81,11 @@ public abstract class GraphDatabaseSetting
             {
                 throw illegalValue( locale, value );
             }
+        }
+
+        public String getString( Map<String, String> config )
+        {
+            return config.get( name() );
         }
     }
     
@@ -151,6 +158,11 @@ public abstract class GraphDatabaseSetting
             }
 
             rangeCheck( val );
+        }
+
+        public int getInteger( Map<String, String> config )
+        {
+            return Integer.parseInt( config.get( name() ) );
         }
     }
 
@@ -254,11 +266,63 @@ public abstract class GraphDatabaseSetting
     }
 
     public static class PortSetting
-        extends IntegerSetting
+        extends GraphDatabaseSetting
     {
         public PortSetting( String name )
         {
-            super(name, "Must be a valid port number", 1, 65535);
+            super(name, "Must be a valid port number");
+        }
+
+        @Override
+        public void validate( Locale locale, String values )
+        {
+            String[] ports = values.split( "-" );
+            for( String value : ports )
+            {
+
+                if (value == null)
+                    throw illegalValue( locale, value );
+
+                int val;
+                try
+                {
+                    val = Integer.parseInt( value );
+                }
+                catch( Exception e )
+                {
+                    throw illegalValue( locale, value );
+                }
+
+                rangeCheck( val );
+            }
+        }
+
+        public int[] getPorts( Map<String, String> config )
+        {
+            String[] ports = config.get( name() ).split( "-" );
+            int[] portInts = new int[ports.length];
+
+            for( int i = 0; i < ports.length; i++ )
+            {
+                String port = ports[ i ];
+                portInts[i] = Integer.parseInt( port );
+            }
+            return portInts;
+        }
+
+        public int getPort( Map<String, String> config )
+        {
+            return Integer.parseInt( config.get( name() ));
+        }
+
+        protected void rangeCheck(Comparable value)
+        {
+            // Check range
+            if (value.compareTo( new Integer( 1 ) ) < 0)
+                throw new IllegalArgumentException( "Minimum allowed value is: 0" );
+
+            if (value.compareTo( new Integer( 65535 ) ) > 0)
+                throw new IllegalArgumentException( "Maximum allowed value is: 65535" );
         }
     }
 
