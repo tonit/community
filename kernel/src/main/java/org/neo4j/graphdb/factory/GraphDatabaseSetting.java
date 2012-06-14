@@ -20,7 +20,6 @@
 
 package org.neo4j.graphdb.factory;
 
-import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.Locale;
