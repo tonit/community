@@ -41,12 +41,12 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.kernel.impl.annotations.Documented;
-import org.neo4j.server.database.DatabaseBlockedException;
 import org.neo4j.server.helpers.FunctionalTestHelper;
 import org.neo4j.server.rest.domain.GraphDbHelper;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.domain.JsonParseException;
 import org.neo4j.server.rest.repr.RelationshipRepresentationTest;
+import org.neo4j.server.rest.repr.formats.StreamingJsonFormat;
 
 public class RetrieveRelationshipsFromNodeFunctionalTest extends AbstractRestFunctionalTestBase
 {
@@ -154,6 +154,18 @@ public class RetrieveRelationshipsFromNodeFunctionalTest extends AbstractRestFun
     {
         String entity = gen.get()
                 .expectedStatus( 200 )
+                .get( functionalTestHelper.nodeUri() + "/" + nodeWithRelationships + "/relationships" + "/all" )
+                .entity();
+        verifyRelReps( 3, entity );
+    }
+
+    @Test
+    public void shouldRespondWith200AndListOfRelationshipRepresentationsWhenGettingAllRelationshipsForANodeStreaming()
+            throws JsonParseException
+    {
+        String entity = gen.get()
+                .withHeader(StreamingJsonFormat.STREAM_HEADER,"true")
+                .expectedStatus(200)
                 .get( functionalTestHelper.nodeUri() + "/" + nodeWithRelationships + "/relationships" + "/all" )
                 .entity();
         verifyRelReps( 3, entity );
@@ -284,6 +296,14 @@ public class RetrieveRelationshipsFromNodeFunctionalTest extends AbstractRestFun
     }
 
     @Test
+    public void shouldRespondWith404WhenGettingIncomingRelationshipsForNonExistingNodeStreaming()
+    {
+        JaxRsResponse response = RestRequest.req().header(StreamingJsonFormat.STREAM_HEADER,"true").get(functionalTestHelper.nodeUri() + "/" + nonExistingNode + "/relationships" + "/in");
+        assertEquals( 404, response.getStatus() );
+        response.close();
+    }
+
+    @Test
     public void shouldRespondWith404WhenGettingOutgoingRelationshipsForNonExistingNode()
     {
         JaxRsResponse response = sendRetrieveRequestToServer( nonExistingNode, "/out" );
@@ -292,7 +312,7 @@ public class RetrieveRelationshipsFromNodeFunctionalTest extends AbstractRestFun
     }
 
     @Test
-    public void shouldGet200WhenRetrievingValidRelationship() throws DatabaseBlockedException
+    public void shouldGet200WhenRetrievingValidRelationship()
     {
         long relationshipId = helper.createRelationship( "LIKES" );
 

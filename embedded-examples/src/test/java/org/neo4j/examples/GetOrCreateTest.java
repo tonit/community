@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Test;
 import org.neo4j.graphdb.GraphDatabaseService;
@@ -60,14 +61,13 @@ public class GetOrCreateTest extends AbstractJavaDocTestbase
 
     class ThreadRunner implements Runnable
     {
-        public static final int NUM_USERS = 10;
+        public static final int NUM_USERS = 1000;
         final GetOrCreate impl;
 
         ThreadRunner( GetOrCreate impl )
         {
             this.impl = impl;
         }
-
 
         private Node createNode()
         {
@@ -90,19 +90,28 @@ public class GetOrCreateTest extends AbstractJavaDocTestbase
             final Node lockNode = createNode();
             final List<List<Node>> results = new ArrayList<List<Node>>();
             final List<Thread> threads = new ArrayList<Thread>();
-            for ( int i = 0; i < 10; i++ )
+            final AtomicReference<RuntimeException> failure = new AtomicReference<RuntimeException>();
+            for ( int i = 0; i < Runtime.getRuntime().availableProcessors()*2; i++ )
             {
-                threads.add( new Thread()
+                threads.add( new Thread( GetOrCreateTest.class.getSimpleName() + " thread " + i )
                 {
                     @Override
                     public void run()
                     {
-                        List<Node> subresult = new ArrayList<Node>();
-                        for ( int j = 0; j < NUM_USERS; j++ )
+                        try
                         {
-                            subresult.add( impl.getOrCreateUser( getUsername( j ), graphdb(), lockNode ) );
+                            List<Node> subresult = new ArrayList<Node>();
+                            for ( int j = 0; j < NUM_USERS; j++ )
+                            {
+                                subresult.add( impl.getOrCreateUser( getUsername( j ), graphdb(), lockNode ) );
+                            }
+                            results.add( subresult );
                         }
-                        results.add( subresult );
+                        catch ( RuntimeException e )
+                        {
+                            failure.compareAndSet( null, e );
+                            throw e;
+                        }
                     }
                 } );
             }
@@ -121,6 +130,10 @@ public class GetOrCreateTest extends AbstractJavaDocTestbase
                     e.printStackTrace();
                 }
             }
+
+            if ( failure.get() != null )
+                throw failure.get();
+
             List<Node> first = results.remove( 0 );
             for ( List<Node> subresult : results )
             {
@@ -191,7 +204,7 @@ public class GetOrCreateTest extends AbstractJavaDocTestbase
     {
         new ThreadRunner( new UniqueFactoryGetOrCreate() ).run();
     }
-    
+
     // START SNIPPET: getOrCreate
     public Node getOrCreateUserWithUniqueFactory( String username, GraphDatabaseService graphDb )
     {
@@ -203,7 +216,7 @@ public class GetOrCreateTest extends AbstractJavaDocTestbase
                 created.setProperty( "name", properties.get( "name" ) );
             }
         };
-        
+
         return factory.getOrCreate( "name", username );
     }
     // END SNIPPET: getOrCreate

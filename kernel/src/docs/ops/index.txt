@@ -15,7 +15,11 @@ include::introduction.txt[]
 
 include::performance-guide.txt[]
 
+include::configuration.txt[]
+
 include::cache.txt[]
+
+include::logical-logs.txt[]
 
 include::jvm.txt[]
 

@@ -34,7 +34,6 @@ import org.junit.Test;
 import org.neo4j.graphdb.Node;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.kernel.impl.annotations.Documented;
-import org.neo4j.server.database.DatabaseBlockedException;
 import org.neo4j.server.rest.domain.JsonHelper;
 import org.neo4j.server.rest.web.PropertyValueException;
 import org.neo4j.test.GraphDescription.Graph;
@@ -43,20 +42,18 @@ import org.neo4j.test.GraphDescription.NODE;
 public class TraverserFunctionalTest extends AbstractRestFunctionalTestBase
 {
 
-
     @Test
     public void shouldGet404WhenTraversingFromNonExistentNode()
     {
-        gen.get().expectedStatus( Status.NOT_FOUND.getStatusCode() ).payload(
+        gen().expectedStatus( Status.NOT_FOUND.getStatusCode() ).payload(
                 "{}" ).post( getDataUri() + "node/10000/traverse/node" ).entity();
     }
 
     @Test
     @Graph( nodes = {@NODE(name="I")} )
     public void shouldGet200WhenNoHitsFromTraversing()
-            throws DatabaseBlockedException
     {
-        assertSize( 0,gen.get().expectedStatus( 200 ).payload( "" ).post(
+        assertSize( 0,gen().expectedStatus( 200 ).payload( "" ).post(
                 getTraverseUriNodes( getNode( "I" ) ) ).entity());
     }
     
@@ -67,9 +64,8 @@ public class TraverserFunctionalTest extends AbstractRestFunctionalTestBase
     @Test
     @Graph( {"I know you", "I own car"} )
     public void return_relationships_from_a_traversal()
-            throws DatabaseBlockedException
     {
-        assertSize( 2, gen.get().expectedStatus( 200 ).payload( "{\"order\":\"breadth_first\",\"uniqueness\":\"none\",\"return_filter\":{\"language\":\"builtin\",\"name\":\"all\"}}" ).post(
+        assertSize( 2, gen().expectedStatus( 200 ).payload( "{\"order\":\"breadth_first\",\"uniqueness\":\"none\",\"return_filter\":{\"language\":\"builtin\",\"name\":\"all\"}}" ).post(
                 getTraverseUriRelationships( getNode( "I" ) ) ).entity());
     }
 
@@ -81,9 +77,8 @@ public class TraverserFunctionalTest extends AbstractRestFunctionalTestBase
     @Test
     @Graph( {"I know you", "I own car"} )
     public void return_paths_from_a_traversal()
-            throws DatabaseBlockedException
     {
-        assertSize( 3, gen.get().expectedStatus( 200 ).payload( "{\"order\":\"breadth_first\",\"uniqueness\":\"none\",\"return_filter\":{\"language\":\"builtin\",\"name\":\"all\"}}" ).post(
+        assertSize( 3, gen().expectedStatus( 200 ).payload( "{\"order\":\"breadth_first\",\"uniqueness\":\"none\",\"return_filter\":{\"language\":\"builtin\",\"name\":\"all\"}}" ).post(
                 getTraverseUriPaths( getNode( "I" ) ) ).entity());
     }
     
@@ -108,7 +103,7 @@ public class TraverserFunctionalTest extends AbstractRestFunctionalTestBase
     public void shouldGetSomeHitsWhenTraversingWithDefaultDescription()
             throws PropertyValueException
     {
-        String entity = gen.get().expectedStatus( Status.OK.getStatusCode() ).payload( "{}" ).post(
+        String entity = gen().expectedStatus( Status.OK.getStatusCode() ).payload( "{}" ).post(
                 getTraverseUriNodes( getNode( "I" ) ) ).entity();
 
         expectNodes( entity, getNode( "you" ));
@@ -161,7 +156,7 @@ public class TraverserFunctionalTest extends AbstractRestFunctionalTestBase
                 MapUtil.map( "language", "javascript", "body",
                         "position.endNode().getProperty('name').toLowerCase().contains('t')" ),
                 "relationships", rels, "max_depth", 3 ) );
-        String entity = gen.get().expectedStatus( 200 ).payload( description ).post(
+        String entity = gen().expectedStatus( 200 ).payload( description ).post(
                 getTraverseUriNodes( start ) ).entity();
         expectNodes( entity, getNodes( "Root", "Mattias", "Peter", "Tobias" ) );
     }
@@ -183,7 +178,7 @@ public class TraverserFunctionalTest extends AbstractRestFunctionalTestBase
                 "return_filter",
                 MapUtil.map( "language", "javascript", "body",
                         "position.length()<3;" ) ) );
-        String entity = gen.get().expectedStatus( 200 ).payload( description ).post(
+        String entity = gen().expectedStatus( 200 ).payload( description ).post(
                 getTraverseUriNodes( start ) ).entity();
         expectNodes( entity, getNodes( "Root", "Mattias", "Johan", "Emil" ) );
     }
@@ -191,9 +186,8 @@ public class TraverserFunctionalTest extends AbstractRestFunctionalTestBase
     @Test
     @Graph( "I know you" )
     public void shouldGet400WhenSupplyingInvalidTraverserDescriptionFormat()
-            throws DatabaseBlockedException
     {
-        gen.get().expectedStatus( Status.BAD_REQUEST.getStatusCode() ).payload(
+        gen().expectedStatus( Status.BAD_REQUEST.getStatusCode() ).payload(
                 "::not JSON{[ at all" ).post(
                 getTraverseUriNodes( getNode( "I" ) ) ).entity();
     }

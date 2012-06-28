@@ -22,7 +22,6 @@ package org.neo4j.kernel.impl.transaction.xaframework;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.ReadableByteChannel;
-import java.util.StringTokenizer;
 
 import org.neo4j.helpers.Pair;
 import org.neo4j.helpers.collection.ClosableIterable;
@@ -153,11 +152,9 @@ public abstract class XaDataSource implements Lifecycle
     }
 
     /**
-     * Rotates this logical log. If {@link #keepLogicalLogs(boolean)} is
-     * configured to true the log will be saved and can be retrieved with the
-     * {@link #getLogicalLog(long)} method. If not it will be deleted. Active
-     * transactions get copied to a new logical log.
+     * Rotates this logical log. Active transactions get copied to a new logical log.
      *
+     * @return the last transaction id of the produced logical log.
      * @throws IOException if unable to read old log or write to new one
      */
     public long rotateLogicalLog() throws IOException
@@ -207,23 +204,6 @@ public abstract class XaDataSource implements Lifecycle
     }
 
     /**
-     * Sets wether logical logs should be saved upon rotation or not. Default
-     * is <CODE>false</CODE>.
-     *
-     * @param keepLogs <CODE>true</CODE> means save, <CODE>false</CODE> means
-     * delete
-     */
-    public void keepLogicalLogs( boolean keepLogs )
-    {
-        throw new UnsupportedOperationException( getClass().getName() );
-    }
-
-    public boolean isLogicalLogKept()
-    {
-        throw new UnsupportedOperationException( getClass().getName() );
-    }
-
-    /**
      * Returns the assigned name of this resource.
      *
      * @return the assigned name of this resource
@@ -252,54 +232,6 @@ public abstract class XaDataSource implements Lifecycle
     public void setLogicalLogTargetSize( long size )
     {
         throw new UnsupportedOperationException( getClass().getName() );
-    }
-
-    /**
-     * If the config says that logical logs should be kept for the given
-     * {@code resourceName} this method will return {@code true}, otherwise
-     * {@code false}. The format of the configuration value is either:
-     * <ul>
-     *   <li><b>=</b> : no data sources will keep its logs</li>
-     *   <li><b>=nioneodb,lucene</b> : the specified data sources will keep its logs</li>
-     *   <li><b>=true</b> : all data sources will keep their logical logs</li>
-     * </ul>
-     * The first and last are recommended, since the data source names are really
-     * an implementation detail.
-     *
-     * @param config the configuration value specified by user configuration.
-     * @param resourceName the name of the xa data source to check.
-     * @return whether or not logical logs should be kept for the data source
-     * by the name {@code resourceName} or not. Or {@code null} if not specified.
-     */
-    protected Boolean shouldKeepLog( String config, String resourceName )
-    {
-        if ( config == null )
-        {
-            return null;
-        }
-        
-        if ( config.equals( Boolean.TRUE.toString() ) || config.equals( Boolean.FALSE.toString() ) )
-        {
-            return Boolean.parseBoolean( config );
-        }
-        StringTokenizer tok = new StringTokenizer( config, "," );
-        while ( tok.hasMoreTokens() )
-        {
-            Pair<String, Boolean> parsed = parsePossiblyKeyValueConfig( tok.nextToken().trim() );
-            if ( resourceName.equals( parsed.first() ) )
-            {
-                return parsed.other();
-            }
-        }
-        return Boolean.FALSE;
-    }
-
-    private Pair<String, Boolean> parsePossiblyKeyValueConfig( String element )
-    {
-        int equalsIndex = element.indexOf( '=' );
-        return equalsIndex != -1 ?
-                Pair.of( element.substring( 0, equalsIndex ), Boolean.parseBoolean( element.substring( equalsIndex+1 ) ) ) :
-                Pair.of( element, Boolean.TRUE );
     }
 
     public ReadableByteChannel getPreparedTransaction( int identifier ) throws IOException

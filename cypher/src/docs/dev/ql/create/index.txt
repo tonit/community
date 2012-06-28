@@ -3,6 +3,10 @@ Create
 ======
 Creating graph elements - nodes and relationships, is done with +CREATE+.
 
+[TIP]
+In the `CREATE` clause, patterns are used a lot.
+Read <<introduction-pattern>> for an introduction.
+
 :leveloffset: 2
 
 include::create-single-node.txt[]
@@ -10,7 +14,7 @@ include::create-single-node-and-set-properties.txt[]
 include::return-created-node.txt[]
 include::create-a-relationship-between-two-nodes.txt[]
 include::create-a-relationship-and-set-properties.txt[]
-
+include::create-a-full-path.txt[]
 
 [[create-create-single-node-from-map]]
 == Create single node from map ==

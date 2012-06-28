@@ -101,7 +101,7 @@ class ExecutionPlanImpl(inputQuery: Query, graph: GraphDatabaseService) extends 
   private def getEagerReadWriteQuery(pipe: Pipe, columns: List[String]): Map[String, Any] => ExecutionResult = {
     val func = (params: Map[String, Any]) => {
       val state = new QueryState(graph, MutableMaps.create ++ params)
-      new EagerPipeExecutionResult(pipe.createResults(state), pipe.symbols, columns, state)
+      new EagerPipeExecutionResult(pipe.createResults(state), pipe.symbols, columns, state, graph)
     }
 
     func
@@ -146,7 +146,7 @@ The Neo4j Team
     new ShortestPathBuilder,
     new RelationshipByIdBuilder(graph),
     new CreateNodesAndRelationshipsBuilder(graph),
-    new DeleteAndPropertySetBuilder(graph),
+    new UpdateActionBuilder(graph),
     new EmptyResultBuilder
   )
 

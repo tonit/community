@@ -22,8 +22,8 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
         <groupId>org.neo4j.build</groupId>
-        <artifactId>parent-pom</artifactId>
-        <version>33</version>
+        <artifactId>parent-central</artifactId>
+        <version>35</version>
         <relativePath />
     </parent>
 
@@ -49,20 +49,14 @@
         <neo-server.confdir>target/test-classes/etc/neo-server</neo-server.confdir>
         <neo-server.test.hostname />
 
-        <!-- This code name is injected into Webadmin, please update it
-   when updating the project version. -->
-        <neo4j.codename>Bastuträsk Bänk</neo4j.codename>
-
-        <!-- Relative to /webadmin/ -->
-        <neo4j.codename.icon>img/icons/branding/1.7.png</neo4j.codename.icon>
-
         <felix-fileinstall.version>3.0.2</felix-fileinstall.version>
         <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
         <blueprints.version>1.2</blueprints.version>
         <gremlin.version>1.5</gremlin.version>
 
-        <!-- Run integration tests against a server that is started elsewhere. This is used in ServerIntegrationTestFacade, which currently assumes external servers to be running at http://localhost:7474/ -->
-        <testWithExternalServer>false</testWithExternalServer>
+        <!-- Run integration tests against a server that is started elsewhere. -->
+        <neo-server.external>false</neo-server.external>
+        <neo-server.external.url>http://localhost:7474</neo-server.external.url>
 
         <webdriver.version>2.20.0</webdriver.version>
         <webdriver.implementation>Firefox</webdriver.implementation>
@@ -71,6 +65,8 @@
         <webdriver.chrome.driver>webdriver-binaries/chromedriver</webdriver.chrome.driver>
         <webdriver.chrome.driver.download.url>http://chromium.googlecode.com/files/chromedriver_mac_18.0.995.0.zip</webdriver.chrome.driver.download.url>
         <webdriver.sauce.labs.url>**Needs to provided externally by the CI job for security reasons**</webdriver.sauce.labs.url>
+        
+        <!-- Don't write new code using this, use neo-server.external instead -->
         <webdriver.override.neo-server.baseuri />
     </properties>
 
@@ -566,7 +562,7 @@
                         <module>
                             <name>webadmin</name>
                             <exclude>
-                                <!-- Arbor runs with WebWorkers, webworkers want are started by giving
+                                <!-- Arbor runs with WebWorkers, webworkers are started by giving
                            the browser a js url to fetch and run, so this needs to be separate
                            from the webadmin js file. -->
                                 <exclude>lib/arbor.js</exclude>
@@ -663,6 +659,54 @@
             </configuration>
           </plugin>
 
+          <plugin>
+            <artifactId>maven-antrun-plugin</artifactId>
+            <version>1.7</version><!--$NO-MVN-MAN-VER$-->
+            <executions>
+              <execution>
+                <phase>process-classes</phase>
+                <configuration>
+                  <target>
+                    <taskdef
+                      resource="net/sf/antcontrib/antcontrib.properties"
+                      classpathref="maven.plugin.classpath"/>
+                      
+                    <!-- Inject version-specific things (codename, version etc.)
+                         into webadmin -->
+                    <ant antfile="src/build/webadmin-branding.ant.xml" />
+                    
+                  </target>
+                </configuration>
+                <goals>
+                  <goal>run</goal>
+                </goals>
+              </execution>
+            </executions>
+            <dependencies>
+              <dependency>
+              <groupId>ant-contrib</groupId>
+                <artifactId>ant-contrib</artifactId>
+                <version>1.0b3</version>
+                <exclusions>
+                  <exclusion>
+                    <groupId>ant</groupId>
+                    <artifactId>ant</artifactId>
+                  </exclusion>
+                </exclusions>
+              </dependency>
+              <dependency>
+                <groupId>org.apache.ant</groupId>
+                <artifactId>ant</artifactId>
+                <version>1.7.1</version>
+              </dependency>
+              <dependency>
+                <groupId>org.apache.ant</groupId>
+                <artifactId>ant-apache-regexp</artifactId>
+                <version>1.7.1</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+
         </plugins>
 
     </build>
@@ -756,7 +800,6 @@
                 </plugins>
             </build>
         </profile>
-
 
         <profile>
             <id>skip-brew</id>
@@ -934,7 +977,7 @@
     <distributionManagement>
         <site>
             <id>neo4j-site</id>
-            <url>scpexe://components.neo4j.org/home/neo/components/${project.artifactId}/${project.version}</url>
+            <url>scpexe://static.neo4j.org/var/www/components.neo4j.org/${project.artifactId}/${project.version}</url>
         </site>
     </distributionManagement>
 

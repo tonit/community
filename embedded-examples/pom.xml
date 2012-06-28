@@ -3,7 +3,7 @@
   <parent>
     <groupId>org.neo4j.build</groupId>
     <artifactId>examples-pom</artifactId>
-    <version>33</version>
+    <version>35</version>
     <relativePath />
   </parent>
   <groupId>org.neo4j.examples</groupId>
@@ -50,6 +50,11 @@
     </dependency>
     <dependency>
       <groupId>org.neo4j</groupId>
+      <artifactId>neo4j-cypher</artifactId>
+      <version>1.8-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>org.neo4j</groupId>
       <artifactId>neo4j-kernel</artifactId>
       <version>1.8-SNAPSHOT</version>
       <type>test-jar</type>
@@ -66,6 +71,11 @@
       <artifactId>neo4j-udc</artifactId>
       <version>1.8-SNAPSHOT</version>
       <classifier>neo4j</classifier>
+    </dependency>
+    <dependency>
+      <groupId>org.hsqldb</groupId>
+      <artifactId>hsqldb</artifactId>
+      <version>2.2.8</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -215,7 +225,7 @@
   <distributionManagement>
     <site>
       <id>neo4j-site</id>
-      <url>scpexe://components.neo4j.org/home/neo/components/${project.artifactId}/${project.version}</url>
+      <url>scpexe://static.neo4j.org/var/www/components.neo4j.org/${project.artifactId}/${project.version}</url>
     </site>
   </distributionManagement>
 

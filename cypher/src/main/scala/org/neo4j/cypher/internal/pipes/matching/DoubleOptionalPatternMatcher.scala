@@ -24,6 +24,13 @@ import collection.immutable.Set
 import collection.Seq
 import collection.Map
 
+/*
+Normally, when we encounter an optional relationship, we can try with null and see if that's enough. But for
+double optional patterns ( a -[?]-> X <-[?]- b ), we have to try to get to X both from a and from b
+to find all combinations.
+
+This class takes care of double optional patterns
+ */
 class DoubleOptionalPatternMatcher(bindings: Map[String, MatchingPair],
                                    predicates: Seq[Predicate],
                                    includeOptionals: Boolean,
@@ -35,37 +42,64 @@ class DoubleOptionalPatternMatcher(bindings: Map[String, MatchingPair],
                                                      history: History,
                                                      yielder: (Map[String, Any]) => U,
                                                      current: MatchingPair,
-                                                     leftToDoAfterThisOne: Set[MatchingPair],
                                                      alreadyInExtraWork: Boolean): Boolean = {
-    val result = super.traverseNextSpecificNode(remaining, history, yielder, current, leftToDoAfterThisOne, false)
+    val initialResult = super.traverseNextSpecificNode(remaining, history, yielder, current, alreadyInExtraWork = false)
 
+    // To prevent going around for infinity, we check that we are not already checking for double optionals
     if (includeOptionals && !alreadyInExtraWork) {
-      val work = shouldDoExtraWork(current, remaining)
-      work.foldLeft(result)((last, next) => {
-        val (newHead, newRemaining) = remaining.partition(p => p.patternNode.key == next.endNode)
-        val remainingPlusCurrent = newRemaining + current
+      val pathsToCheck: List[DoubleOptionalPath] = shouldDoExtraWork(current, remaining).toList
 
-        val myYielder = (m: Map[String, Any]) => {
-          m.get(next.relationshipName) match {
-            case Some(null) => yielder(m)
-            case _ =>
-          }
-        }
+      val extendedCheck = pathsToCheck.foldLeft(initialResult)((last, next) => {
+        val (newRemaining: Set[MatchingPair], newCurrent: MatchingPair) = swap(remaining, current, next)
 
-        traverseNextSpecificNode(remaining, history, myYielder, newHead.head, remainingPlusCurrent, true) || last
+        val myYielder = createYielder(yielder, next, newCurrent) _
+
+        debug(newRemaining, newCurrent, history, next)
+        traverseNextSpecificNode(newRemaining, history, myYielder, newCurrent, alreadyInExtraWork = true) || last
       })
+
+      extendedCheck
     }
     else
-      result
+      initialResult
   }
 
-  def shouldDoExtraWork(current: MatchingPair, remaining: Set[MatchingPair]): Seq[DoubleOptionalPath] = doubleOptionalPaths.filter(
-    dop => {
-      val b = dop.startNode == current.patternNode.key
-      val sdf = remaining.exists(_.patternNode.key == dop.endNode)
-      b && sdf
-    }
-  )
-}
+  private def debug(remaining: Set[MatchingPair], current: MatchingPair, history: History, dop: DoubleOptionalPath) {
+    if (isDebugging) {
 
-case class DoubleOptionalPath(startNode:String, endNode:String, relationshipName:String)
+      println(String.format("""DoubleOptionalPatternMatcher.traverseNextSpecificNode -- Extra check
+remaining = %s
+current   = %s
+history   = %s
+DoubleOP  = %s
+    """, remaining, current, history, dop))
+    }
+  }
+
+  private def swap(remaining: Set[MatchingPair], current: MatchingPair, dop: DoubleOptionalPath): (Set[MatchingPair], MatchingPair) =
+    (remaining, remaining.find(_.patternElement.key == dop.otherNode(current.patternElement.key)).get)
+
+  private def shouldDoExtraWork(current: MatchingPair, remaining: Set[MatchingPair]): Seq[DoubleOptionalPath] =
+    doubleOptionalPaths.filter(_.shouldDoWork(current.patternNode.key, remaining))
+
+
+  /*
+  We're only looking for paths that we would not find during our normal pattern matching. This yielder protects us
+  from yielding subgraphs that have already been found.
+   */
+  private def createYielder[A](inner: Map[String, Any] => A, dop: DoubleOptionalPath, current: MatchingPair)(m: Map[String, Any]) {
+    val Relationships(closestRel, oppositeRel) = dop.relationshipsSeenFrom(current.patternElement.key)
+
+    val weShouldYield = m.get(closestRel) != Some(null) && m.get(oppositeRel) == Some(null)
+
+    if (weShouldYield) {
+      inner(m)
+
+      if (isDebugging) println(String.format("""optional extra yield:
+      m=%s
+""", m))
+
+    }
+
+  }
+}

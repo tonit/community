@@ -2,9 +2,13 @@
 Match
 =====
 
-include::introduction.txt[]
+== Introduction ==
 
-For the examples given in the sections below, the follwoing graph is the base:
+[TIP]
+In the `MATCH` clause, patterns are used a lot.
+Read <<introduction-pattern>> for an introduction.
+
+The following graph is used for the examples below:
 
 include::cypher-match-graph.txt[]
 
@@ -27,4 +31,5 @@ include::shortest-path.txt[]
 include::all-shortest-paths.txt[]
 include::named-path.txt[]
 include::matching-on-a-bound-relationship.txt[]
+include::match-with-or.txt[]
 

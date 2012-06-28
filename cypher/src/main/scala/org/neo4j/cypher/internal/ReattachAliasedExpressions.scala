@@ -25,12 +25,10 @@ import commands._
 /*
 This rewriter rewrites expressions that come after the RETURN clause,
 so the user can either use the raw expression, or the alias
-
-These clauses are HAVING and ORDER BY right now.
  */
 object ReattachAliasedExpressions {
   def apply(q: Query): Query = {
-    val newSort = q.sort.map(oldSort => Sort(oldSort.sortItems.map(rewrite(q.returns.returnItems)): _*))
+    val newSort = q.sort.map(rewrite(q.returns.returnItems))
 
     q.copy(sort = newSort)
   }

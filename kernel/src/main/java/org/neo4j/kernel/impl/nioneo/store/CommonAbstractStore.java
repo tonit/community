@@ -20,6 +20,8 @@
 
 package org.neo4j.kernel.impl.nioneo.store;
 
+import static org.neo4j.helpers.Exceptions.launderedException;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -27,6 +29,7 @@ import java.nio.channels.OverlappingFileLockException;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import org.neo4j.graphdb.factory.GraphDatabaseSetting;
 import org.neo4j.graphdb.factory.GraphDatabaseSettings;
 import org.neo4j.helpers.UTF8;
@@ -104,12 +107,22 @@ public abstract class CommonAbstractStore
         this.idType = idType;
         this.stringLogger = stringLogger;
         grabFileLock = configuration.getBoolean( Configuration.grab_file_lock );
-        readOnly = configuration.getBoolean( Configuration.read_only );
-        backupSlave = configuration.getBoolean( Configuration.backup_slave );
         
-        checkStorage();
-        checkVersion(); // Overriden in NeoStore
-        loadStorage();
+        try
+        {
+            readOnly = configuration.getBoolean( Configuration.read_only );
+            backupSlave = configuration.getBoolean( Configuration.backup_slave );
+            
+            checkStorage();
+            checkVersion(); // Overriden in NeoStore
+            loadStorage();
+        }
+        catch ( Exception e )
+        {
+            if ( fileChannel != null )
+                closeChannel();
+            throw launderedException( e );
+        }
     }
 
     public String getTypeAndVersionDescriptor()
@@ -625,15 +638,8 @@ public abstract class CommonAbstractStore
         }
         if ( (isReadOnly() && !isBackupSlave()) || idGenerator == null || !storeOk )
         {
-            try
-            {
-                fileChannel.close();
-                fileChannel = null;
-            }
-            catch ( IOException e )
-            {
-                throw new UnderlyingStorageException( e );
-            }
+            closeChannel();
+            fileChannel = null;
             return;
         }
         long highId = idGenerator.getHighId();
@@ -692,6 +698,18 @@ public abstract class CommonAbstractStore
         {
             throw new UnderlyingStorageException( "Unable to close store "
                 + getStorageFileName(), storedIoe );
+        }
+    }
+
+    private void closeChannel()
+    {
+        try
+        {
+            fileChannel.close();
+        }
+        catch ( IOException e )
+        {
+            throw new UnderlyingStorageException( e );
         }
     }
 

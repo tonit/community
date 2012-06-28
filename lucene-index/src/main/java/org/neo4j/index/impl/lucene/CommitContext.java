@@ -24,7 +24,6 @@ import java.util.Map;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.search.IndexSearcher;
 import org.neo4j.index.impl.lucene.LuceneTransaction.CommandList;
 
 /**
@@ -39,10 +38,10 @@ class CommitContext
     final Map<Long, DocumentContext> documents = new HashMap<Long, DocumentContext>();
     final CommandList commandList;
     final boolean recovery;
-    
+
+    IndexReference searcher;
     IndexWriter writer;
-    IndexSearcher searcher;
-    
+
     CommitContext( LuceneDataSource dataSource, IndexIdentifier identifier, IndexType indexType, CommandList commandList )
     {
         this.dataSource = dataSource;
@@ -51,26 +50,26 @@ class CommitContext
         this.commandList = commandList;
         this.recovery = commandList.isRecovery();
     }
-    
+
     void ensureWriterInstantiated()
     {
-        if ( writer == null )
+        if ( searcher == null )
         {
-            writer = dataSource.getIndexWriter( identifier );
-            searcher = dataSource.getIndexSearcher( identifier, false ).getSearcher();
+            searcher = dataSource.getIndexSearcher( identifier );
+            writer = searcher.getWriter();
         }
     }
-    
+
     DocumentContext getDocument( Object entityId, boolean allowCreate )
     {
-        long id = entityId instanceof Long ? (Long) entityId : ((RelationshipId)entityId).id;
+        long id = entityId instanceof Long ? (Long) entityId : ( (RelationshipId) entityId ).id;
         DocumentContext context = documents.get( id );
         if ( context != null )
         {
             return context;
         }
-        
-        Document document = LuceneDataSource.findDocument( indexType, searcher, id );
+
+        Document document = LuceneDataSource.findDocument( indexType, searcher.getSearcher(), id );
         if ( document != null )
         {
             context = new DocumentContext( document, true, id );
@@ -82,6 +81,12 @@ class CommitContext
             documents.put( id, context );
         }
         return context;
+    }
+
+    public void close()
+    {
+        if ( searcher != null )
+            searcher.close();
     }
 
     static class DocumentContext
